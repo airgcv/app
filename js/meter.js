@@ -1,5 +1,5 @@
 // ==========================================
-// MODULE: METER.JS (INLINE EDIT, SIMPAN MASSAL & SMART LOCK)
+// MODULE: METER.JS
 // ==========================================
 
 let isFilterBelumDicatatActive = false;
