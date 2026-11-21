@@ -1,5 +1,5 @@
 // ==========================================
-// MODULE: DEPOSIT.JS (FULL KODE DENGAN MUTASI, BUKU REKENING & AUTO-SYNC)
+// MODULE: DEPOSIT.JS
 // ==========================================
 
 let dataDepositGlobal = [];
@@ -38,6 +38,13 @@ function toggleAutoRefreshDeposit() {
 
 // Fungsi untuk memuat data deposit dari Backend
 async function loadDepositData() {
+  const activeSess = JSON.parse(sessionStorage.getItem("user_session") || "{}");
+  const isViewer = activeSess.role === "Viewer";
+  const btnTambahDeposit = document.querySelector("button[onclick='showUpdateDepositModal()']");
+  if (btnTambahDeposit) {
+    btnTambahDeposit.style.display = isViewer ? 'none' : 'inline-flex';
+  }
+
   const tbody = document.getElementById("tbodyDeposit");
   if (!tbody) return;
 
@@ -62,6 +69,13 @@ function renderDepositTable(list) {
   const tbody = document.getElementById("tbodyDeposit");
   if (!tbody) return;
 
+  const activeSess = JSON.parse(sessionStorage.getItem("user_session") || "{}");
+  const isViewer = activeSess.role === "Viewer";
+  const btnTambahDeposit = document.querySelector("button[onclick='showUpdateDepositModal()']");
+  if (btnTambahDeposit) {
+    btnTambahDeposit.style.display = isViewer ? 'none' : 'inline-flex';
+  }
+
   if (list && list.length > 0) {
     tbody.innerHTML = list.map((item, index) => {
       const saldoNum = Number(item.saldo) || 0;
@@ -80,9 +94,11 @@ function renderDepositTable(list) {
             <button onclick="showBukuRekeningModal('${item.kavling}', '${item.nama}')" class="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="Buku Rekening / Riwayat Mutasi">
               <i data-lucide="book-text" class="w-3.5 h-3.5"></i>
             </button>
+            ${isViewer ? '' : `
             <button onclick="showUpdateDepositModal('${item.kavling}', '${item.nama}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="Kelola / Update Saldo Deposit">
               <i data-lucide="wallet" class="w-3.5 h-3.5"></i>
             </button>
+            `}
           </td>
         </tr>
       `;
@@ -171,6 +187,12 @@ function closeModalBukuRekening() {
 
 // Fungsi untuk membuka Modal Update Deposit
 function showUpdateDepositModal(kavling = '', nama = '') {
+    const activeSess = JSON.parse(sessionStorage.getItem("user_session") || "{}");
+    if (activeSess.role === "Viewer") {
+        if (typeof showToast === 'function') showToast("Akses ditolak! Akun Viewer hanya dapat melihat data.", "error");
+        return;
+    }
+
     const elKav = document.getElementById("depKavling");
     const elNama = document.getElementById("depNama");
     const elNom = document.getElementById("depNominal");
@@ -265,6 +287,12 @@ function getBase64Deposit(file) {
 
 // Fungsi utama untuk mengirim data mutasi saldo & upload bukti ke Apps Script
 async function submitUpdateDeposit() {
+    const activeSess = JSON.parse(sessionStorage.getItem("user_session") || "{}");
+    if (activeSess.role === "Viewer") {
+        if (typeof showToast === 'function') showToast("Akses ditolak! Akun Viewer tidak memiliki izin mengubah deposit.", "error");
+        return;
+    }
+
     const kavlingInput = document.getElementById("depKavling");
     const namaInput = document.getElementById("depNama");
     const nominalInput = document.getElementById("depNominal");
