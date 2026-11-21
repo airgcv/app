@@ -644,9 +644,21 @@ function handleLogout() {
   location.reload();
 }
 
+let cachedWaCsAir = "";
+
+async function loadWaCsAir() {
+  if (cachedWaCsAir) return cachedWaCsAir;
+  const res = await callApi({ action: "getWaCs" });
+  if (res && res.status === "success" && res.waCs) {
+    cachedWaCsAir = res.waCs;
+  }
+  return cachedWaCsAir;
+}
+
 function openLupaPassword() { 
   const modal = document.getElementById("modalLupaPass");
-  if (modal) modal.classList.remove("hidden"); 
+  if (modal) modal.classList.remove("hidden");
+  loadWaCsAir();
 }
 
 function closeLupaPassword() { 
@@ -654,8 +666,19 @@ function closeLupaPassword() {
   if (modal) modal.classList.add("hidden"); 
 }
 
-function mintaResetWa() {
-  window.open("https://wa.me/6282295616626?text=" + encodeURIComponent("Halo, saya lupa password akun pengelola Air."), "_blank");
+async function mintaResetWa() {
+  let nomorWa = cachedWaCsAir;
+  if (!nomorWa) {
+    showToast("Mengambil nomor WA CS dari pengaturan...", "info");
+    nomorWa = await loadWaCsAir();
+  }
+
+  if (!nomorWa) {
+    showToast("Nomor WA CS (wa_cs_air) belum diatur di sheet Pengaturan.", "error");
+    return;
+  }
+
+  window.open("https://wa.me/" + nomorWa + "?text=" + encodeURIComponent("Halo, saya lupa password akun pengelola Air."), "_blank");
 }
 
 async function handleResetMaster(e) {
