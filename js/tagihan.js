@@ -1,5 +1,5 @@
 // ==========================================
-// MODULE: TAGIHAN.JS (DENGAN SMART DEDUCTION DEPOSIT & HIDE UPLOAD BUKTI OTOMATIS)
+// MODULE: TAGIHAN.JS
 // ==========================================
 
 let isFilterBelumBayarActive = false;
@@ -115,6 +115,13 @@ function renderTagihanTable(list) {
       const hasPdf = t.linkPdf && t.linkPdf !== "-" && t.linkPdf.startsWith("http");
       const isWaSent = (t.statusWa || "").toUpperCase() === "SUDAH";
 
+      const downloadBtnClass = hasPdf
+        ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+        : "bg-slate-900 hover:bg-slate-800 text-white shadow-sm";
+      const downloadBtnTitle = hasPdf
+        ? "PDF Sudah Diunduh (Klik untuk unduh ulang)"
+        : "Download PDF";
+
       let waBtnClass = "";
       let waBtnTitle = "";
       let waDisabled = false;
@@ -150,7 +157,7 @@ function renderTagihanTable(list) {
                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
               </button>
 
-              <button onclick="downloadPdf('${t.kavling}', '${t.bulanTahun}')" class="bg-slate-900 hover:bg-slate-800 text-white p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs shadow-sm" title="Download PDF">
+              <button onclick="downloadPdf('${t.kavling}', '${t.bulanTahun}', this)" class="${downloadBtnClass} p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="${downloadBtnTitle}">
                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
               </button>
 
@@ -322,7 +329,7 @@ function bukaModalDetail(t) {
         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
         : (isDicicil 
             ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-            : 'bg-rose-100 text-rose-800 border border-rose-200')
+            : 'bg-rose-100 text-rose-700 border border-rose-200')
     }">${t.statusBayar || 'Belum Bayar'}</span>`;
   }
 
@@ -1250,7 +1257,7 @@ async function eksekusiBatalPintar() {
   }
 }
 
-async function downloadPdf(kavling, bulan) {
+async function downloadPdf(kavling, bulan, btnElement) {
   showToast("Sedang memproses & mengunduh PDF...", "info");
   const res = await callApi({ action: "generatePdf", kavling: kavling, bulanTahun: bulan });
 
@@ -1273,6 +1280,22 @@ async function downloadPdf(kavling, bulan) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Ubah warna tombol download seketika setelah PDF terunduh
+    if (btnElement) {
+      btnElement.classList.remove("bg-slate-900", "hover:bg-slate-800");
+      btnElement.classList.add("bg-indigo-600", "hover:bg-indigo-700");
+      btnElement.title = "PDF Sudah Diunduh (Klik untuk unduh ulang)";
+    }
+
+    // Perbarui state lokal agar tetap konsisten saat filter/pindah blok
+    const targetItem = rawListTagihan.find(
+      item => String(item.kavling).toUpperCase() === String(kavling).toUpperCase() &&
+              String(item.bulanTahun).replace(/Aug/i, "Agt").trim().toLowerCase() === String(bulan).replace(/Aug/i, "Agt").trim().toLowerCase()
+    );
+    if (targetItem && (!targetItem.linkPdf || !targetItem.linkPdf.startsWith("http"))) {
+      targetItem.linkPdf = res.linkPdf || "https://drive.google.com/downloaded";
+    }
     
     showToast("PDF berhasil dibuat & diunduh!", "success");
     loadDashboardDataForTab('tagihan');
