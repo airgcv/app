@@ -260,6 +260,21 @@ async function fetchAndUpdateAllData(isBackground = false) {
   }
 
   if (resMeter && resMeter.status === "success") {
+    // Cek pembaruan versi aplikasi otomatis
+    const serverVersion = String(resMeter.appVersion || "1.0").trim();
+    const localVersion = sessionStorage.getItem("app_version_active");
+
+    if (!localVersion) {
+      sessionStorage.setItem("app_version_active", serverVersion);
+    } else if (localVersion !== serverVersion && !isEditingMeter) {
+      sessionStorage.setItem("app_version_active", serverVersion);
+      showToast("Pembaruan sistem terdeteksi, memuat ulang versi terbaru...", "info");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      return;
+    }
+
     if (!isLimitInitialized) {
       globalLimit = resMeter.defaultLimit || 25;
       Object.keys(paginationState).forEach(key => {
