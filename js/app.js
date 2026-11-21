@@ -655,7 +655,7 @@ function closeLupaPassword() {
 }
 
 function mintaResetWa() {
-  window.open("https://wa.me/6282312915318?text=" + encodeURIComponent("Halo Pak Dedi, saya lupa password akun pengelola Air GCV."), "_blank");
+  window.open("https://wa.me/6282295616626?text=" + encodeURIComponent("Halo, saya lupa password akun pengelola Air."), "_blank");
 }
 
 async function handleResetMaster(e) {
