@@ -131,6 +131,8 @@ let isEditingMeter = false;
 
 window.onload = () => {
   populateDropdownPeriode();
+  generateLoginCaptcha();
+  generateResetCaptcha();
 
   const sess = sessionStorage.getItem("user_session");
   if (sess) {
@@ -458,11 +460,11 @@ async function loadDashboardDataForTab(tabType) {
     const res = await callApi({ action: "getDashboardData", periode: activePeriodeTagihan });
     if (res && res.status === "success") {
       const estTagihan = document.getElementById("statEstimasiTagihan");
-      const tagihanDibayar = document.getElementById("statTagihanDibayar");
+      const tagihanBayar = document.getElementById("statTagihanDibayar");
       const tunggakanEl = document.getElementById("statTunggakan");
 
       if (estTagihan) estTagihan.innerText = res.stats.estimasiTagihan;
-      if (tagihanDibayar) tagihanDibayar.innerText = res.stats.tagihanDibayar;
+      if (tagihanBayar) tagihanBayar.innerText = res.stats.tagihanDibayar;
       if (tunggakanEl) tunggakanEl.innerText = res.stats.tunggakan4Bln;
 
       let totalAkumulasiTunggakan = 0;
@@ -624,15 +626,78 @@ function aturMenuBerdasarkanRole(role, nama) {
   }
 }
 
+// === KEAMANAN ANTI-BOT (CAPTCHA MANDIRI) ===
+let captchaNum1 = 0;
+let captchaNum2 = 0;
+
+function generateLoginCaptcha() {
+  captchaNum1 = Math.floor(Math.random() * 9) + 1;
+  captchaNum2 = Math.floor(Math.random() * 9) + 1;
+
+  const soalEl = document.getElementById("captchaSoalText");
+  const inputAnsEl = document.getElementById("inputCaptchaJawaban");
+
+  if (soalEl) soalEl.innerText = `${captchaNum1} + ${captchaNum2} = ?`;
+  if (inputAnsEl) inputAnsEl.value = "";
+}
+
+function toggleRobotCaptcha(checkboxEl) {
+  const boxChallenge = document.getElementById("boxCaptchaChallenge");
+  const inputAnsEl = document.getElementById("inputCaptchaJawaban");
+
+  if (checkboxEl && checkboxEl.checked) {
+    generateLoginCaptcha();
+    if (boxChallenge) boxChallenge.classList.remove("hidden");
+    if (inputAnsEl) setTimeout(() => inputAnsEl.focus(), 50);
+  } else {
+    if (boxChallenge) boxChallenge.classList.add("hidden");
+    if (inputAnsEl) inputAnsEl.value = "";
+  }
+}
+
 async function handleLoginMulti(e) {
   e.preventDefault();
   const username = document.getElementById("inputUsername").value;
   const pass = document.getElementById("inputPassword").value;
   const btn = document.getElementById("btnLogin");
 
+  const chkRobot = document.getElementById("chkBukanRobot");
+  const hpWebsiteEl = document.getElementById("inputHpWebsite");
+  const captchaAnsEl = document.getElementById("inputCaptchaJawaban");
+
+  const hpWebsite = hpWebsiteEl ? hpWebsiteEl.value : "";
+  const captchaAnswer = captchaAnsEl ? captchaAnsEl.value.trim() : "";
+
+  if (hpWebsite.trim() !== "") {
+    showToast("Verifikasi keamanan gagal.", "error");
+    return;
+  }
+
+  if (!chkRobot || !chkRobot.checked) {
+    showToast("Silakan centang 'Saya bukan robot' terlebih dahulu.", "error");
+    return;
+  }
+
+  if (captchaAnswer === "" || parseInt(captchaAnswer, 10) !== (captchaNum1 + captchaNum2)) {
+    showToast("Jawaban verifikasi hitungan belum tepat. Silakan coba lagi.", "error");
+    generateLoginCaptcha();
+    if (captchaAnsEl) captchaAnsEl.focus();
+    return;
+  }
+
   if (btn) btn.innerText = "Memverifikasi...";
 
-  const res = await callApi({ action: "loginAdmin", username: username, password: pass });
+  const res = await callApi({
+    action: "loginAdmin",
+    username: username,
+    password: pass,
+    hpWebsite: hpWebsite,
+    isHumanChecked: chkRobot.checked,
+    captchaNum1: captchaNum1,
+    captchaNum2: captchaNum2,
+    captchaAnswer: captchaAnswer
+  });
+
   if (res && res.status === "success") {
     sessionStorage.setItem("user_session", JSON.stringify(res.user));
     const modalLogin = document.getElementById("modalLogin");
@@ -645,6 +710,10 @@ async function handleLoginMulti(e) {
     if (!backgroundSyncTimer) backgroundSyncTimer = setInterval(backgroundSyncData, 10000);
   } else {
     showToast(res ? res.message : "Terjadi kesalahan koneksi", "error");
+    if (chkRobot) chkRobot.checked = false;
+    const boxChallenge = document.getElementById("boxCaptchaChallenge");
+    if (boxChallenge) boxChallenge.classList.add("hidden");
+    generateLoginCaptcha();
   }
 
   if (btn) {
@@ -670,9 +739,45 @@ async function loadWaCsAir() {
   return cachedWaCsAir;
 }
 
+// === KEAMANAN ANTI-BOT MODAL RESET PASSWORD ===
+let resetCaptchaNum1 = 0;
+let resetCaptchaNum2 = 0;
+
+function generateResetCaptcha() {
+  resetCaptchaNum1 = Math.floor(Math.random() * 9) + 1;
+  resetCaptchaNum2 = Math.floor(Math.random() * 9) + 1;
+
+  const soalEl = document.getElementById("captchaSoalTextReset");
+  const inputAnsEl = document.getElementById("inputCaptchaJawabanReset");
+
+  if (soalEl) soalEl.innerText = `${resetCaptchaNum1} + ${resetCaptchaNum2} = ?`;
+  if (inputAnsEl) inputAnsEl.value = "";
+}
+
+function toggleRobotCaptchaReset(checkboxEl) {
+  const boxChallenge = document.getElementById("boxCaptchaChallengeReset");
+  const inputAnsEl = document.getElementById("inputCaptchaJawabanReset");
+
+  if (checkboxEl && checkboxEl.checked) {
+    generateResetCaptcha();
+    if (boxChallenge) boxChallenge.classList.remove("hidden");
+    if (inputAnsEl) setTimeout(() => inputAnsEl.focus(), 50);
+  } else {
+    if (boxChallenge) boxChallenge.classList.add("hidden");
+    if (inputAnsEl) inputAnsEl.value = "";
+  }
+}
+
 function openLupaPassword() { 
   const modal = document.getElementById("modalLupaPass");
   if (modal) modal.classList.remove("hidden");
+
+  const chkReset = document.getElementById("chkBukanRobotReset");
+  const boxReset = document.getElementById("boxCaptchaChallengeReset");
+  if (chkReset) chkReset.checked = false;
+  if (boxReset) boxReset.classList.add("hidden");
+  generateResetCaptcha();
+
   loadWaCsAir();
 }
 
@@ -702,11 +807,40 @@ async function handleResetMaster(e) {
   const masterKey = document.getElementById("inputMasterKey").value;
   const passBaru = document.getElementById("inputPassBaru").value;
 
+  const chkRobot = document.getElementById("chkBukanRobotReset");
+  const hpWebsiteEl = document.getElementById("inputHpWebsiteReset");
+  const captchaAnsEl = document.getElementById("inputCaptchaJawabanReset");
+
+  const hpWebsite = hpWebsiteEl ? hpWebsiteEl.value : "";
+  const captchaAnswer = captchaAnsEl ? captchaAnsEl.value.trim() : "";
+
+  if (hpWebsite.trim() !== "") {
+    showToast("Verifikasi keamanan gagal.", "error");
+    return;
+  }
+
+  if (!chkRobot || !chkRobot.checked) {
+    showToast("Silakan centang 'Saya bukan robot' terlebih dahulu.", "error");
+    return;
+  }
+
+  if (captchaAnswer === "" || parseInt(captchaAnswer, 10) !== (resetCaptchaNum1 + resetCaptchaNum2)) {
+    showToast("Jawaban verifikasi hitungan belum tepat. Silakan coba lagi.", "error");
+    generateResetCaptcha();
+    if (captchaAnsEl) captchaAnsEl.focus();
+    return;
+  }
+
   const res = await callApi({
     action: "resetPasswordMaster",
     username: targetUser,
     masterKey: masterKey,
-    passwordBaru: passBaru
+    passwordBaru: passBaru,
+    hpWebsite: hpWebsite,
+    isHumanChecked: chkRobot.checked,
+    captchaNum1: resetCaptchaNum1,
+    captchaNum2: resetCaptchaNum2,
+    captchaAnswer: captchaAnswer
   });
 
   if (res && res.status === "success") {
@@ -714,12 +848,41 @@ async function handleResetMaster(e) {
     closeLupaPassword();
   } else {
     showToast(res ? res.message : "Gagal melakukan reset", "error");
+    if (chkRobot) chkRobot.checked = false;
+    const boxReset = document.getElementById("boxCaptchaChallengeReset");
+    if (boxReset) boxReset.classList.add("hidden");
+    generateResetCaptcha();
   }
 }
 
 function togglePassVisibility() {
   const input = document.getElementById("inputPassword");
-  if (input) input.type = input.type === "password" ? "text" : "password";
+  const icon = document.getElementById("iconEye");
+  if (input) {
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+    if (icon) {
+      icon.setAttribute("data-lucide", isPassword ? "eye-off" : "eye");
+      if (typeof lucide !== "undefined" && lucide.createIcons) {
+        lucide.createIcons();
+      }
+    }
+  }
+}
+
+function togglePassBaruVisibility() {
+  const input = document.getElementById("inputPassBaru");
+  const icon = document.getElementById("iconEyePassBaru");
+  if (input) {
+    const isPassword = input.type === "password";
+    input.type = isPassword ? "text" : "password";
+    if (icon) {
+      icon.setAttribute("data-lucide", isPassword ? "eye-off" : "eye");
+      if (typeof lucide !== "undefined" && lucide.createIcons) {
+        lucide.createIcons();
+      }
+    }
+  }
 }
 
 function switchTab(tabId) {
