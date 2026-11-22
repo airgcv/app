@@ -559,10 +559,10 @@ function renderTunggakanTable(list, isAlreadySorted = false) {
 
       return `
         <tr class="hover:bg-slate-50/80 transition-colors">
-          <td class="py-3 px-3.5 font-bold text-slate-900">${infoKavlingDisplay}</td>
-          <td class="py-3 px-3.5 font-bold text-rose-600">${item.totalFormatted}</td>
-          <td class="py-3 px-3.5 text-slate-700 font-semibold">${durasi} Bulan</td>
-          <td class="py-3 px-3.5">
+          <td class="py-3 px-3.5 font-bold text-slate-900 truncate max-w-[320px]" title="${infoKavlingDisplay}">${infoKavlingDisplay}</td>
+          <td class="py-3 px-3.5 font-bold text-rose-600 text-right whitespace-nowrap">${item.totalFormatted}</td>
+          <td class="py-3 px-3.5 text-slate-700 font-semibold whitespace-nowrap">${durasi} Bulan</td>
+          <td class="py-3 px-3.5 whitespace-nowrap">
             <div class="space-y-0.5">
               <span class="inline-block ${isSp2 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'} px-2 py-0.5 rounded font-bold text-xs">
                 ${item.statusSp || 'SP-1 / Humanis'}
