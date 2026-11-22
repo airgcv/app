@@ -175,7 +175,7 @@ function renderTagihanTable(list) {
                 ` : ''}
                 
                 ${!isLunas ? `
-                <button onclick="openModalMultiBayar('${t.kavling}')" class="bg-emerald-600 hover:bg-emerald-700 text-white p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs shadow-sm transition-all" title="Proses Pembayaran">
+                <button onclick="openModalMultiBayar('${t.kavling}', '${t.bulanTahun}')" class="bg-emerald-600 hover:bg-emerald-700 text-white p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs shadow-sm transition-all" title="Proses Pembayaran">
                   <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
                 </button>
                 ` : ''}
@@ -811,7 +811,7 @@ function getBatasTempo(bulanTahunStr) {
   return new Date(tempoTahun, tempoBulan, 15, 23, 59, 59);
 }
 
-async function openModalMultiBayar(kavling) {
+async function openModalMultiBayar(kavling, targetBulanTahun = null) {
   const activeSess = JSON.parse(sessionStorage.getItem("user_session") || "{}");
   if (activeSess.role === "Viewer") return;
 
@@ -837,6 +837,13 @@ async function openModalMultiBayar(kavling) {
   }
 
   let tagihanKavling = rawListTagihan.filter(t => t.kavling.toUpperCase() === kavling.toUpperCase());
+  const periodeAcuan = targetBulanTahun || (typeof activePeriodeTagihan !== 'undefined' ? activePeriodeTagihan : null);
+  if (periodeAcuan) {
+    const tglAcuan = parseBulanTahunToDate(periodeAcuan);
+    if (tglAcuan.getTime() > 0) {
+      tagihanKavling = tagihanKavling.filter(t => parseBulanTahunToDate(t.bulanTahun) <= tglAcuan);
+    }
+  }
   if (tagihanKavling.length === 0) {
     showToast("Kavling " + kavling + " tidak memiliki tagihan aktif.", "info");
     return;
