@@ -503,7 +503,7 @@ function sortTableTunggakan(column) {
   });
 
   if (!windowGlobalListTunggakan || windowGlobalListTunggakan.length === 0) {
-    windowGlobalListTunggakan = [...rawListTunggakan];
+    windowGlobalListTunggakan = [...rawListTagihan];
   }
 
   windowGlobalListTunggakan.sort((a, b) => {
@@ -934,6 +934,9 @@ async function openModalMultiBayar(kavling, targetBulanTahun = null) {
   if (fileInput) fileInput.value = "";
   updateVisibilityBuktiTransfer();
 
+  const defaultRadioDenda = document.querySelector('input[name="multiOpsiDenda"][value="A"]');
+  if (defaultRadioDenda) defaultRadioDenda.checked = true;
+
   hitungTotalMultiBayar('auto');
   document.getElementById("modalMultiBayar").classList.remove("hidden");
   lucide.createIcons();
@@ -941,6 +944,8 @@ async function openModalMultiBayar(kavling, targetBulanTahun = null) {
 
 function closeModalMultiBayar() {
   document.getElementById("modalMultiBayar").classList.add("hidden");
+  const defaultRadioDenda = document.querySelector('input[name="multiOpsiDenda"][value="A"]');
+  if (defaultRadioDenda) defaultRadioDenda.checked = true;
   activeMultiKavling = null;
   activeDepositSaldo = 0;
 }
