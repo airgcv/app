@@ -2,7 +2,7 @@
 // MODULE: AUTO-LOGOUT.JS (IDLE TIMEOUT)
 // ==========================================
 
-const IDLE_TIMEOUT_MENIT = 15; // Ubah durasi menit di sini (misal: 10, 15, atau 30)
+const IDLE_TIMEOUT_MENIT = 5; // Ubah durasi menit di sini (misal: 10, 15, atau 30)
 const IDLE_TIMEOUT_MS = IDLE_TIMEOUT_MENIT * 60 * 1000;
 
 let lastActivityTime = Date.now();
