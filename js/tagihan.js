@@ -86,6 +86,15 @@ function renderTagihanTable(list) {
 
   if (paginatedList && paginatedList.length > 0) {
     tbodyTagihan.innerHTML = paginatedList.map(t => {
+      const safeJsonT = JSON.stringify(t)
+        .replace(/&/g, "\\u0026")
+        .replace(/</g, "\\u003c")
+        .replace(/>/g, "\\u003e")
+        .replace(/'/g, "\\u0027");
+      const safeNamaT = (t.nama || '-')
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, "&quot;");
       const isWaEmpty = !t.noWa || t.noWa.trim() === "" || t.noWa === "-";
       let tunggakanSebelumnya = Number(t.tunggakanSebelumnya) || 0;
 
@@ -153,12 +162,12 @@ function renderTagihanTable(list) {
 
           <td class="py-1.5 px-3.5 text-center">
             <div class="inline-flex items-center gap-1">
-              <button onclick='bukaModalDetail(${JSON.stringify(t)})' class="bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="Lihat Rincian Detail Tagihan">
+              <button onclick='bukaModalDetail(${safeJsonT})' class="bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="Lihat Rincian Detail Tagihan">
                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
               </button>
 
               ${(isDicicil || Number(t.nominalDibayar) > 0) ? `
-              <button onclick="openModalRiwayatCicilan('${t.kavling}', '${(t.nama || '-').replace(/'/g, "\'")}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="Buku Riwayat Cicilan & Pembayaran">
+              <button onclick="openModalRiwayatCicilan('${t.kavling}', '${safeNamaT}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="Buku Riwayat Cicilan & Pembayaran">
                 <i data-lucide="history" class="w-3.5 h-3.5"></i>
               </button>
               ` : ''}
@@ -186,7 +195,7 @@ function renderTagihanTable(list) {
                 </button>
                 ` : ''}
                 
-                <button ${waDisabled ? 'disabled' : ''} onclick='kirimWaTagihan(${JSON.stringify(t)}, this)' class="${waBtnClass} p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="${waBtnTitle}">
+                <button ${waDisabled ? 'disabled' : ''} onclick='kirimWaTagihan(${safeJsonT}, this)' class="${waBtnClass} p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="${waBtnTitle}">
                   <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
                 </button>
               `}
@@ -552,6 +561,10 @@ function renderTunggakanTable(list, isAlreadySorted = false) {
 
   if (paginatedList && paginatedList.length > 0) {
     tbody.innerHTML = paginatedList.map(item => {
+      const safeNamaSp = (item.nama || '-')
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, "&quot;");
       const durasi = Number(item.durasiBulan) || 3;
       const isSp2 = durasi >= 6;
       const isWaEmpty = !item.noWa || item.noWa.trim() === "" || item.noWa === "-";
@@ -581,9 +594,9 @@ function renderTunggakanTable(list, isAlreadySorted = false) {
           <td class="py-3 px-3.5 text-center">
             ${isViewOnly ? '<span class="text-slate-400 text-xs font-medium">View Only</span>' : `
               <div class="inline-flex items-center gap-1.5 justify-center">
-                <button ${isWaEmpty ? 'disabled' : ''} onclick="kirimSpWa('${item.kavling}', '${item.nama}', '${item.noWa}', '${item.totalFormatted}', ${durasi}, 'SP1', ${durasi}, '${item.totalFormatted}', '${item.perumahan}')" class="${isWaEmpty ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'} px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Kirim SP-1</button>
+                <button ${isWaEmpty ? 'disabled' : ''} onclick="kirimSpWa('${item.kavling}', '${safeNamaSp}', '${item.noWa}', '${item.totalFormatted}', ${durasi}, 'SP1', ${durasi}, '${item.totalFormatted}', '${item.perumahan}')" class="${isWaEmpty ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'} px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Kirim SP-1</button>
                 
-                <button ${isSp2Disabled ? 'disabled' : ''} onclick="kirimSpWa('${item.kavling}', '${item.nama}', '${item.noWa}', '${item.totalFormatted}', ${durasi}, 'SP2', ${durasi}, '${item.totalFormatted}', '${item.perumahan}')" class="${isSp2Disabled ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs'} px-3 py-1.5 rounded-lg text-xs font-bold transition-all" title="${!sp1Sent ? 'Kirim SP-1 terlebih dahulu agar SP-2 aktif' : ''}">Kirim SP-2</button>
+                <button ${isSp2Disabled ? 'disabled' : ''} onclick="kirimSpWa('${item.kavling}', '${safeNamaSp}', '${item.noWa}', '${item.totalFormatted}', ${durasi}, 'SP2', ${durasi}, '${item.totalFormatted}', '${item.perumahan}')" class="${isSp2Disabled ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-rose-600 hover:bg-rose-700 text-white shadow-xs'} px-3 py-1.5 rounded-lg text-xs font-bold transition-all" title="${!sp1Sent ? 'Kirim SP-1 terlebih dahulu agar SP-2 aktif' : ''}">Kirim SP-2</button>
               </div>
             `}
           </td>
