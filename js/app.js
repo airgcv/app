@@ -224,6 +224,30 @@ function hideToast() {
   toast.classList.remove("translate-y-0", "opacity-100");
 }
 
+function checkAndHandleAppVersion(resObj) {
+  if (!resObj || resObj.status !== "success") return false;
+  const serverVersion = String(resObj.appVersion || "1.0").trim();
+  const localVersion = sessionStorage.getItem("app_version_active");
+
+  if (!localVersion) {
+    sessionStorage.setItem("app_version_active", serverVersion);
+    return false;
+  }
+
+  if (localVersion !== serverVersion && !isEditingMeter) {
+    sessionStorage.setItem("app_version_active", serverVersion);
+    if (typeof showToast === "function") {
+      showToast("Pembaruan sistem terdeteksi (v" + serverVersion + "), memuat ulang versi terbaru...", "info");
+    }
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+    return true;
+  }
+
+  return false;
+}
+
 async function loadDashboardData() {
   showToast("Memuat data...", "info");
   await fetchAndUpdateAllData();
@@ -262,20 +286,7 @@ async function fetchAndUpdateAllData(isBackground = false) {
   }
 
   if (resMeter && resMeter.status === "success") {
-    // Cek pembaruan versi aplikasi otomatis
-    const serverVersion = String(resMeter.appVersion || "1.0").trim();
-    const localVersion = sessionStorage.getItem("app_version_active");
-
-    if (!localVersion) {
-      sessionStorage.setItem("app_version_active", serverVersion);
-    } else if (localVersion !== serverVersion && !isEditingMeter) {
-      sessionStorage.setItem("app_version_active", serverVersion);
-      showToast("Pembaruan sistem terdeteksi, memuat ulang versi terbaru...", "info");
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-      return;
-    }
+    if (checkAndHandleAppVersion(resMeter)) return;
 
     if (!isLimitInitialized) {
       globalLimit = resMeter.defaultLimit || 25;
@@ -421,6 +432,7 @@ async function loadDashboardDataForTab(tabType) {
   if (tabType === 'meter') {
     const res = await callApi({ action: "getDashboardData", periode: activePeriodeMeter });
     if (res && res.status === "success") {
+      if (checkAndHandleAppVersion(res)) return;
       rawListMeter = (res.listMeter || []).sort((a, b) => 
         String(a.kavling).localeCompare(String(b.kavling), undefined, { numeric: true, sensitivity: 'base' })
       );
@@ -459,6 +471,7 @@ async function loadDashboardDataForTab(tabType) {
   } else if (tabType === 'tagihan') {
     const res = await callApi({ action: "getDashboardData", periode: activePeriodeTagihan });
     if (res && res.status === "success") {
+      if (checkAndHandleAppVersion(res)) return;
       const estTagihan = document.getElementById("statEstimasiTagihan");
       const tagihanBayar = document.getElementById("statTagihanDibayar");
       const tunggakanEl = document.getElementById("statTunggakan");

@@ -157,6 +157,12 @@ function renderTagihanTable(list) {
                 <i data-lucide="eye" class="w-3.5 h-3.5"></i>
               </button>
 
+              ${(isDicicil || Number(t.nominalDibayar) > 0) ? `
+              <button onclick="openModalRiwayatCicilan('${t.kavling}', '${(t.nama || '-').replace(/'/g, "\'")}')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="Buku Riwayat Cicilan & Pembayaran">
+                <i data-lucide="history" class="w-3.5 h-3.5"></i>
+              </button>
+              ` : ''}
+
               <button onclick="downloadPdf('${t.kavling}', '${t.bulanTahun}', this)" class="${downloadBtnClass} p-1.5 rounded-lg font-semibold inline-flex items-center justify-center text-xs transition-all" title="${downloadBtnTitle}">
                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
               </button>
@@ -757,7 +763,7 @@ ${t.linkPdf}`;
 `;
     }
 
-    let nomorWaAdmin = t.waAdmin || t.noWaAdmin || "+6282312915318";
+    let nomorWaAdmin = t.waAdmin || t.noWaAdmin || "+628XXXXXXXXXX";
 
     pesanRincianAtauLunas = teksTunggakan + `-------------------------------------------------------------------
 - *Total Harus Dibayar: ${formatTotalHarusDibayar}*
@@ -883,14 +889,17 @@ async function openModalMultiBayar(kavling, targetBulanTahun = null) {
       <div class="p-2.5 rounded-xl bg-white border border-slate-200 space-y-2">
         <label class="flex items-center justify-between cursor-pointer">
           <div class="flex items-center gap-2.5">
-            <input type="checkbox" class="checkbox-tagihan w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" value="${t.idTagihan}" data-nominal-sisa="${nominalSisa}" data-denda-sheet="${dendaDiSheet}" data-bulan="${t.bulanTahun}" checked onchange="hitungTotalMultiBayar('auto')">
+            <input type="checkbox" class="checkbox-tagihan w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" value="${t.idTagihan}" data-nominal-sisa="${nominalSisa}" data-denda-sheet="${dendaDiSheet}" data-bulan="${t.bulanTahun}" checked onchange="onCheckboxPeriodeChange()">
             <span class="font-bold text-slate-800">${t.bulanTahun} (${t.statusBayar})</span>
           </div>
           <span class="font-bold text-emerald-700">Tagihan: Rp ${new Intl.NumberFormat('id-ID').format(nominalSisa)}</span>
         </label>
-        <div class="flex items-center gap-2 pl-6">
-          <span class="text-[11px] text-slate-500 font-semibold">Bayar (Cicil / Full): Rp</span>
-          <input type="number" id="bayar_${t.idTagihan}" value="${nominalSisa}" oninput="this.dataset.manual='true'; hitungTotalMultiBayar('manual')" class="w-32 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <div class="flex items-center justify-between gap-2 pl-6">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-slate-500 font-semibold">Alokasi: Rp</span>
+            <input type="text" inputmode="numeric" id="bayar_${t.idTagihan}" value="${new Intl.NumberFormat('id-ID').format(nominalSisa)}" oninput="formatInputRupiahFifo(this); this.dataset.manual='true'; hitungTotalMultiBayar('manual')" class="w-32 border border-slate-200 rounded-xl px-2 py-1 text-xs font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <span id="badge_alokasi_${t.idTagihan}" class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">Lunas</span>
         </div>
       </div>
     `;
@@ -917,7 +926,6 @@ async function openModalMultiBayar(kavling, targetBulanTahun = null) {
             <span class="text-xs font-extrabold text-emerald-800" id="infoPotongDeposit">-</span>
         </div>
         <div id="warningSaldoDepositText" class="hidden mt-1 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 font-medium leading-relaxed">
-            <!-- Pesan peringatan saldo kurang masuk ke sini -->
         </div>
       </div>
     `;
@@ -950,12 +958,158 @@ function closeModalMultiBayar() {
   activeDepositSaldo = 0;
 }
 
+function onCheckboxPeriodeChange() {
+  document.querySelectorAll(".checkbox-tagihan").forEach(cb => {
+    const inp = document.getElementById("bayar_" + cb.value);
+    if (inp) delete inp.dataset.manual;
+  });
+  hitungTotalMultiBayar('auto');
+}
+
 function toggleSelectAllMulti(btn) {
   const checkboxes = document.querySelectorAll(".checkbox-tagihan");
   const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-  checkboxes.forEach(cb => cb.checked = !allChecked);
+  checkboxes.forEach(cb => {
+    cb.checked = !allChecked;
+    const inp = document.getElementById("bayar_" + cb.value);
+    if (inp) delete inp.dataset.manual;
+  });
   btn.innerText = allChecked ? "Pilih Semua" : "Batalkan Semua";
   hitungTotalMultiBayar('auto'); 
+}
+
+function setNominalTransferSesuaiTagihan() {
+  document.querySelectorAll(".checkbox-tagihan").forEach(cb => {
+    const inp = document.getElementById("bayar_" + cb.value);
+    if (inp) delete inp.dataset.manual;
+  });
+  hitungTotalMultiBayar('auto');
+}
+
+function getTargetNominalPeriode(cb, tglBayar, opsiDenda) {
+  let sisaSheet = Number(cb.getAttribute("data-nominal-sisa")) || 0;
+  let dendaSheet = Number(cb.getAttribute("data-denda-sheet")) || 0;
+  let bulan = cb.getAttribute("data-bulan");
+  let isLate = false;
+  if (tglBayar && bulan) {
+    let batasTempo = getBatasTempo(bulan);
+    isLate = tglBayar > batasTempo;
+  }
+
+  let tagihanDitagihkan = sisaSheet;
+  if (opsiDenda === "C") {
+    tagihanDitagihkan = Math.max(0, sisaSheet - dendaSheet);
+  }
+
+  if (isLate && opsiDenda === "B") {
+    return tagihanDitagihkan + 5000;
+  }
+  return tagihanDitagihkan;
+}
+
+function updateBadgeAlokasiPeriode(idTag, bayarVal, targetVal, isChecked) {
+  const badge = document.getElementById("badge_alokasi_" + idTag);
+  if (!badge) return;
+  if (!isChecked) {
+    badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-400";
+    badge.innerText = "Tidak Dipilih";
+    return;
+  }
+  if (bayarVal <= 0) {
+    badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-600";
+    badge.innerText = "Belum Terjangkau";
+  } else if (bayarVal >= targetVal) {
+    badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700";
+    badge.innerText = "Lunas";
+  } else {
+    const sisa = Math.max(0, targetVal - bayarVal);
+    badge.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200";
+    badge.innerText = `Cicil (Sisa Rp ${sisa.toLocaleString('id-ID')})`;
+  }
+}
+
+function formatInputRupiahFifo(input) {
+  if (!input) return;
+  const rawDigits = String(input.value || "").replace(/\D/g, "");
+  if (rawDigits === "") {
+    input.value = "";
+    return;
+  }
+  const num = parseInt(rawDigits, 10);
+  input.value = isNaN(num) ? "" : new Intl.NumberFormat('id-ID').format(num);
+}
+
+function parseNominalRupiahFifo(val) {
+  if (val === null || val === undefined) return 0;
+  const rawDigits = String(val).replace(/\D/g, "");
+  return rawDigits === "" ? 0 : (parseInt(rawDigits, 10) || 0);
+}
+
+function distribusiNominalFifo() {
+  const inputTransfer = document.getElementById("multiInputNominalTransfer");
+  const infoFifo = document.getElementById("infoDistribusiFifo");
+  let danaTersedia = inputTransfer ? Math.max(0, parseNominalRupiahFifo(inputTransfer.value)) : 0;
+
+  const rawDate = document.getElementById("multiInputDateBayar").value;
+  let tglBayar = null;
+  if (rawDate) {
+    const parts = rawDate.split("-");
+    tglBayar = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+  }
+
+  let opsiDenda = "A";
+  const radioSelected = document.querySelector('input[name="multiOpsiDenda"]:checked');
+  if (radioSelected) opsiDenda = radioSelected.value;
+
+  const allCheckboxes = Array.from(document.querySelectorAll(".checkbox-tagihan"));
+  const checkedBoxes = allCheckboxes.filter(cb => cb.checked);
+
+  let sisaDana = danaTersedia;
+  let totalTargetSemua = 0;
+
+  allCheckboxes.forEach((cb) => {
+    const idTag = cb.value;
+    const inputNominal = document.getElementById("bayar_" + idTag);
+    if (!inputNominal) return;
+
+    if (!cb.checked) {
+      inputNominal.value = "0";
+      updateBadgeAlokasiPeriode(idTag, 0, 0, false);
+      return;
+    }
+
+    const targetPeriode = getTargetNominalPeriode(cb, tglBayar, opsiDenda);
+    totalTargetSemua += targetPeriode;
+
+    const isLastChecked = (checkedBoxes[checkedBoxes.length - 1] === cb);
+    let alokasi = 0;
+    if (sisaDana > 0) {
+      if (isLastChecked && sisaDana > targetPeriode) {
+        alokasi = sisaDana;
+      } else {
+        alokasi = Math.min(sisaDana, targetPeriode);
+      }
+      sisaDana -= alokasi;
+    }
+
+    inputNominal.value = new Intl.NumberFormat('id-ID').format(alokasi);
+    inputNominal.dataset.manual = "true";
+    updateBadgeAlokasiPeriode(idTag, alokasi, targetPeriode, true);
+  });
+
+  if (infoFifo) {
+    if (danaTersedia < totalTargetSemua) {
+      const kurang = totalTargetSemua - danaTersedia;
+      infoFifo.innerHTML = `Mode <b>Cicilan FIFO Aktif</b>: Rp ${danaTersedia.toLocaleString('id-ID')} dialokasikan dari bulan terlama. Kekurangan <b>Rp ${kurang.toLocaleString('id-ID')}</b> dicatat sebagai sisa tagihan.`;
+    } else if (danaTersedia > totalTargetSemua && totalTargetSemua > 0) {
+      const lebih = danaTersedia - totalTargetSemua;
+      infoFifo.innerHTML = `Nominal transfer melebihi total tagihan terpilih sebesar <b>Rp ${lebih.toLocaleString('id-ID')}</b>.`;
+    } else {
+      infoFifo.innerHTML = `Sistem otomatis mengalokasikan dana mulai dari periode tunggakan paling awal (FIFO). Anda tetap dapat menyesuaikan nominal per bulan di bawah.`;
+    }
+  }
+
+  hitungTotalMultiBayar('fifo');
 }
 
 function setQuickMultiDate(offsetDays) {
@@ -974,6 +1128,7 @@ function setQuickMultiDateTgl15() {
 }
 
 function hitungTotalMultiBayar(triggerType = 'auto') {
+  const allCheckboxes = document.querySelectorAll(".checkbox-tagihan");
   const checkboxes = document.querySelectorAll(".checkbox-tagihan:checked");
   let totalDiterima = 0;
   let lateCount = 0;
@@ -1017,40 +1172,31 @@ function hitungTotalMultiBayar(triggerType = 'auto') {
     opsi.classList.add("hidden");
   }
 
-  checkboxes.forEach(cb => {
+  allCheckboxes.forEach(cb => {
     let idTag = cb.value;
     let inputNominal = document.getElementById("bayar_" + idTag);
     if (!inputNominal) return;
 
-    let sisaSheet = Number(cb.getAttribute("data-nominal-sisa")) || 0;
-    let dendaSheet = Number(cb.getAttribute("data-denda-sheet")) || 0;
-    
-    let bulan = cb.getAttribute("data-bulan");
-    let isLate = false;
-    if (tglBayar && bulan) {
-      let batasTempo = getBatasTempo(bulan);
-      isLate = tglBayar > batasTempo;
+    if (!cb.checked) {
+      updateBadgeAlokasiPeriode(idTag, 0, 0, false);
+      return;
     }
+
+    const targetVal = getTargetNominalPeriode(cb, tglBayar, opsiDenda);
 
     if (triggerType === 'auto' && inputNominal.dataset.manual !== 'true') {
-      let tagihanDitagihkan = sisaSheet;
-      if (opsiDenda === "C") {
-          tagihanDitagihkan = Math.max(0, sisaSheet - dendaSheet);
-      }
-
-      if (isLate) {
-        if (opsiDenda === "A" || opsiDenda === "C") {
-          inputNominal.value = tagihanDitagihkan; 
-        } else if (opsiDenda === "B") {
-          inputNominal.value = tagihanDitagihkan + 5000; 
-        }
-      } else {
-         inputNominal.value = tagihanDitagihkan; 
-      }
+      inputNominal.value = new Intl.NumberFormat('id-ID').format(targetVal);
     }
-    
-    totalDiterima += (Number(inputNominal.value) || 0);
+
+    const valNow = parseNominalRupiahFifo(inputNominal.value);
+    updateBadgeAlokasiPeriode(idTag, valNow, targetVal, true);
+    totalDiterima += valNow;
   });
+
+  if (triggerType !== 'fifo') {
+    const inputTransfer = document.getElementById("multiInputNominalTransfer");
+    if (inputTransfer) inputTransfer.value = new Intl.NumberFormat('id-ID').format(totalDiterima);
+  }
 
   const checkDeposit = document.getElementById("checkGunakanDeposit");
   const infoPotong = document.getElementById("infoPotongDeposit");
@@ -1095,26 +1241,33 @@ async function submitMultiPelunasan() {
 
   const parts = rawDate.split("-");
   const tglFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
-  
-  let listPembayaran = [];
-  let totalTagihanDipilih = 0;
-  for (let cb of checkboxes) {
-    let idTag = cb.value;
-    let inputNominal = document.getElementById("bayar_" + idTag);
-    let nominalBayar = inputNominal ? (Number(inputNominal.value) || 0) : 0;
-
-    totalTagihanDipilih += nominalBayar;
-    listPembayaran.push({
-      idTagihan: idTag,
-      nominalBayar: nominalBayar
-    });
-  }
 
   let opsiDendaTerpilih = "A";
   const opsiContainer = document.getElementById("multiOpsiDendaContainer");
   if (opsiContainer && !opsiContainer.classList.contains("hidden")) {
       const radioSelected = document.querySelector('input[name="multiOpsiDenda"]:checked');
       if (radioSelected) opsiDendaTerpilih = radioSelected.value;
+  }
+  
+  let listPembayaran = [];
+  let totalTagihanDipilih = 0;
+  for (let cb of checkboxes) {
+    let idTag = cb.value;
+    let inputNominal = document.getElementById("bayar_" + idTag);
+    let nominalBayar = inputNominal ? parseNominalRupiahFifo(inputNominal.value) : 0;
+
+    if (nominalBayar > 0 || opsiDendaTerpilih === "C") {
+      totalTagihanDipilih += nominalBayar;
+      listPembayaran.push({
+        idTagihan: idTag,
+        nominalBayar: nominalBayar
+      });
+    }
+  }
+
+  if (listPembayaran.length === 0) {
+    showToast("Nominal pembayaran harus lebih dari Rp 0!", "error");
+    return;
   }
 
   const checkDeposit = document.getElementById("checkGunakanDeposit");
@@ -1125,7 +1278,6 @@ async function submitMultiPelunasan() {
   let fileName = "";
   let mimeType = "";
 
-  // Upload bukti WAJIB kecuali pakai deposit (apapun kecukupan saldonya)
   const isBypassBukti = gunakanDeposit;
 
   if (!isBypassBukti && (!fileInput || fileInput.files.length === 0)) {
@@ -1152,12 +1304,13 @@ async function submitMultiPelunasan() {
   const savedKavling = activeMultiKavling;
 
   closeModalMultiBayar();
-  showToast("Memproses pembayaran & pemotongan saldo deposit...", "info");
+  showToast("Memproses pembayaran & mencatat riwayat cicilan FIFO...", "info");
 
   const res = await callApi({
     action: "updateMultiStatusBayar",
     kavling: savedKavling,
     listPembayaran: listPembayaran,
+    totalTransferGelondongan: totalTagihanDipilih,
     statusBayar: "Auto", 
     tglBayar: tglFormatted,
     opsiDenda: opsiDendaTerpilih,
@@ -1175,6 +1328,106 @@ async function submitMultiPelunasan() {
   } else {
     showToast(res.message || "Gagal memperbarui status tagihan.", "error");
   }
+}
+
+async function openModalRiwayatCicilan(kavling, nama = '-') {
+  const modal = document.getElementById("modalRiwayatCicilan");
+  const tbody = document.getElementById("tbodyRiwayatCicilan");
+  const elNama = document.getElementById("riwayatCicilanNama");
+  const elKav = document.getElementById("riwayatCicilanKavling");
+  const elMasuk = document.getElementById("riwayatCicilanTotalMasuk");
+  const elSisa = document.getElementById("riwayatCicilanSisa");
+
+  if (elKav) elKav.textContent = kavling || "-";
+  if (elNama) elNama.textContent = nama || "-";
+  if (elMasuk) elMasuk.textContent = "Rp 0";
+  if (elSisa) elSisa.textContent = "Rp 0";
+
+  // Hitung ringkasan dari rawListTagihan lokal terlebih dahulu agar responsif
+  if (typeof rawListTagihan !== "undefined" && rawListTagihan.length > 0) {
+    const tagKav = rawListTagihan.filter(t => (t.kavling || "").toUpperCase() === (kavling || "").toUpperCase());
+    if (tagKav.length > 0 && (!nama || nama === "-")) {
+      if (elNama) elNama.textContent = tagKav[0].nama || "-";
+    }
+    let sumDibayar = 0;
+    let sumSisa = 0;
+    tagKav.forEach(t => {
+      const st = (t.statusBayar || "").toLowerCase();
+      if (st === "dicicil") {
+        sumDibayar += Number(t.nominalDibayar) || 0;
+        sumSisa += Number(t.sisaTagihan) || 0;
+      } else if (st === "belum bayar") {
+        sumSisa += Number(t.totalTagihan) || 0;
+      }
+    });
+    if (elMasuk) elMasuk.textContent = "Rp " + new Intl.NumberFormat('id-ID').format(sumDibayar);
+    if (elSisa) elSisa.textContent = "Rp " + new Intl.NumberFormat('id-ID').format(sumSisa);
+  }
+
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400"><i data-lucide="loader-2" class="w-5 h-5 mx-auto animate-spin mb-2"></i> Mengambil riwayat cicilan...</td></tr>`;
+  }
+  if (modal) modal.classList.remove("hidden");
+  if (typeof lucide !== "undefined") lucide.createIcons();
+
+  try {
+    const res = await callApi({ action: "getRiwayatCicilan", kavling: kavling });
+    if (res.status === "success") {
+      const list = res.data || [];
+      if (typeof res.totalMasukAktif === "number" && res.totalMasukAktif > 0 && elMasuk) {
+        elMasuk.textContent = "Rp " + new Intl.NumberFormat('id-ID').format(res.totalMasukAktif);
+      }
+      if (list.length > 0) {
+        tbody.innerHTML = list.map((item) => {
+          const nom = Number(item.nominalBayar) || 0;
+          const sisa = Number(item.sisaSesudah) || 0;
+          const isBatal = nom < 0 || (item.statusHasil || "").toLowerCase() === "dibatalkan";
+          const isLunasItem = !isBatal && ((item.statusHasil || "").toLowerCase() === "lunas" || (item.statusHasil || "").toLowerCase() === "pemutihan denda");
+          const buktiLink = item.buktiUrl && item.buktiUrl.startsWith("http")
+            ? ` <a href="${item.buktiUrl}" target="_blank" class="text-blue-600 underline font-bold ml-1">[Bukti]</a>`
+            : "";
+
+          return `
+            <tr class="hover:bg-slate-50 transition-colors">
+              <td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">${item.tglBayar || '-'}</td>
+              <td class="py-2.5 px-3 font-bold text-slate-800 whitespace-nowrap">${item.periode || '-'}</td>
+              <td class="py-2.5 px-3 text-right font-bold ${isBatal ? 'text-rose-600' : 'text-emerald-600'} whitespace-nowrap">
+                ${isBatal ? '-' : ''}Rp ${new Intl.NumberFormat('id-ID').format(Math.abs(nom))}
+              </td>
+              <td class="py-2.5 px-3 text-right font-bold text-slate-800 whitespace-nowrap">
+                Rp ${new Intl.NumberFormat('id-ID').format(sisa)}
+              </td>
+              <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                  isBatal
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                    : (isLunasItem
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-800 border border-amber-200')
+                }">
+                  ${item.statusHasil || '-'}
+                </span>
+              </td>
+              <td class="py-2.5 px-3 text-slate-600">${item.keterangan || '-'}${buktiLink}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 font-medium">Belum ada catatan riwayat cicilan untuk kavling ini.</td></tr>`;
+      }
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-500 font-medium">${res.message || 'Gagal memuat riwayat cicilan.'}</td></tr>`;
+    }
+  } catch (e) {
+    console.error("Error getRiwayatCicilan:", e);
+    tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-rose-500 font-medium">Terjadi kesalahan koneksi sistem.</td></tr>`;
+  }
+  if (typeof lucide !== "undefined") lucide.createIcons();
+}
+
+function closeModalRiwayatCicilan() {
+  const modal = document.getElementById("modalRiwayatCicilan");
+  if (modal) modal.classList.add("hidden");
 }
 
 function parseBulanTahunToDate(bulanTahunStr) {

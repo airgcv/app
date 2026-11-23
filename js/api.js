@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbxnfUinjs-9Qu0_Gu0O5kUewQJJCFA6Wb4KKI-Zn7id69OquHSt0Flc4H3pDz2_wMS1GQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwhL7ZQCtk1roLCk4973V-EO61TbHMUXQN1j8vJICjD6LmrszdlPTJOqNeJWb3ID2RN_Q/exec";
 const API_KEY = "40b17676db6758170fc434340f74d66ceba03bc1a62141543c879a8df1005c2d";
 
 function getBase64(file) {
