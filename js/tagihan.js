@@ -467,15 +467,15 @@ async function simpanEditDendaDetail() {
   showToast("Menyesuaikan denda...", "info");
 
   const tagihanAktif = rawListTagihan.find(t => t.idTagihan === currentIdTagihanModal);
-  const statusBayarSekarang = tagihanAktif ? tagihanAktif.statusBayar : "Belum Bayar";
   const tglBayarSekarang = tagihanAktif ? (tagihanAktif.tanggalBayar || tagihanAktif.tglBayar || "-") : "-";
 
   const res = await callApi({
     action: "updateStatusBayar",
     idTagihan: currentIdTagihanModal,
-    statusBayar: statusBayarSekarang, 
+    statusBayar: "KeepStatus", 
     tglBayar: tglBayarSekarang,
-    opsiDenda: inputVal === 0 ? "C" : "B" 
+    opsiDenda: inputVal === 0 ? "C" : "B",
+    nominalDendaManual: inputVal
   });
 
   if (res.status === "success") {
