@@ -676,8 +676,26 @@
           <button type="button" onclick="toggleSelectAllMulti(this)" class="bg-blue-50 text-blue-700 hover:bg-blue-100 px-2.5 py-1 rounded-lg font-bold transition-all">Pilih Semua</button>
         </div>
 
+        <div class="bg-blue-50/80 border border-blue-200 rounded-xl p-3 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <label for="multiInputNominalTransfer" class="block font-bold text-blue-900 text-xs">
+              Nominal Transfer Warga (Auto-Distribusi FIFO):
+            </label>
+            <button type="button" onclick="setNominalTransferSesuaiTagihan()" class="text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-lg transition-all">
+              Sesuai Total Tagihan
+            </button>
+          </div>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-blue-700">Rp</span>
+            <input type="text" inputmode="numeric" id="multiInputNominalTransfer" placeholder="Masukkan nominal transfer warga..." oninput="formatInputRupiahFifo(this); distribusiNominalFifo()" class="w-full border border-blue-300 rounded-xl pl-9 pr-3 py-2 bg-white text-sm font-extrabold text-blue-900 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <p id="infoDistribusiFifo" class="text-[10px] text-blue-700 leading-relaxed">
+            Sistem otomatis mengalokasikan dana mulai dari periode tunggakan paling awal (FIFO). Anda tetap dapat menyesuaikan nominal per bulan di bawah.
+          </p>
+        </div>
+
         <div>
-          <label class="block font-bold text-slate-700 mb-1.5">Centang Periode & Masukkan Nominal Bayar (Bisa Dicicil):</label>
+          <label class="block font-bold text-slate-700 mb-1.5">Alokasi Periode & Rincian Nominal Bayar (FIFO / Manual):</label>
           <div id="containerListCheckboxTagihan" class="space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50"></div>
         </div>
 
@@ -833,7 +851,7 @@
 
         <div>
           <label class="block font-bold text-slate-700 mb-1">No. WhatsApp</label>
-          <input type="text" id="formNoWa" placeholder="Contoh: 6281320263077" class="w-full border rounded-xl px-3.5 py-2 font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <input type="text" id="formNoWa" placeholder="Contoh: 6281234567890" class="w-full border rounded-xl px-3.5 py-2 font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -975,6 +993,72 @@
         <div class="flex gap-2">
           <button onclick="closeModalBukuRekening()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-xl text-xs transition-all">Tutup</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalRiwayatCicilan" class="fixed inset-0 z-[165] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-2xl max-h-[90vh] flex flex-col my-auto overflow-hidden relative">
+      <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-amber-500 to-orange-600 opacity-10 pointer-events-none"></div>
+      
+      <div class="flex justify-between items-center border-b px-6 py-4 bg-white shrink-0 relative z-10">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-amber-100 text-amber-700 rounded-lg">
+            <i data-lucide="history" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Buku Riwayat Cicilan & Pembayaran</h3>
+            <p class="text-[10px] text-slate-500">Log Alokasi Cicilan FIFO & Pelunasan Tagihan Air</p>
+          </div>
+        </div>
+        <button onclick="closeModalRiwayatCicilan()" class="text-slate-400 hover:text-slate-600 bg-slate-50 p-1.5 rounded-lg transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="p-6 space-y-4 overflow-y-auto flex-1 bg-slate-50/50">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div class="space-y-1">
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Identitas Pelanggan</p>
+            <p id="riwayatCicilanNama" class="text-base font-extrabold text-slate-800 uppercase">-</p>
+            <p class="text-xs text-slate-600 font-medium flex items-center gap-1.5">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i> Kavling: <span id="riwayatCicilanKavling" class="text-blue-600 font-bold">-</span>
+            </p>
+          </div>
+          <div class="flex gap-2.5 w-full sm:w-auto">
+            <div class="flex-1 sm:flex-initial text-left sm:text-right bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-100">
+              <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Total Masuk</p>
+              <p id="riwayatCicilanTotalMasuk" class="text-sm font-extrabold text-emerald-700">Rp 0</p>
+            </div>
+            <div class="flex-1 sm:flex-initial text-left sm:text-right bg-rose-50 px-3.5 py-2 rounded-xl border border-rose-100">
+              <p class="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Sisa Tagihan</p>
+              <p id="riwayatCicilanSisa" class="text-sm font-extrabold text-rose-700">Rp 0</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+          <div class="overflow-x-auto max-h-72 scrollbar-thin scrollbar-thumb-slate-200">
+            <table class="w-full text-xs text-left">
+              <thead class="bg-slate-100 text-slate-600 uppercase font-bold sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th class="py-2.5 px-3 whitespace-nowrap">Tgl Bayar</th>
+                  <th class="py-2.5 px-3 whitespace-nowrap">Periode</th>
+                  <th class="py-2.5 px-3 text-right text-emerald-700 whitespace-nowrap">Dibayar (Rp)</th>
+                  <th class="py-2.5 px-3 text-right text-slate-600 whitespace-nowrap">Sisa Akhir (Rp)</th>
+                  <th class="py-2.5 px-3 text-center whitespace-nowrap">Status</th>
+                  <th class="py-2.5 px-3 min-w-[140px] whitespace-nowrap">Keterangan</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyRiwayatCicilan" class="divide-y border-t border-slate-200 font-medium">
+                <tr><td colspan="6" class="py-8 text-center text-slate-400"><i data-lucide="loader-2" class="w-5 h-5 mx-auto animate-spin mb-2"></i> Mengambil riwayat cicilan...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center p-4 border-t bg-white shrink-0">
+        <p class="text-[10px] text-slate-400">*Catatan cicilan tercatat otomatis saat proses pembayaran.</p>
+        <button onclick="closeModalRiwayatCicilan()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-xl text-xs transition-all">Tutup</button>
       </div>
     </div>
   </div>
