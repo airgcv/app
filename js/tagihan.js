@@ -776,7 +776,13 @@ ${t.linkPdf}`;
 `;
     }
 
-    let nomorWaAdmin = t.waAdmin || t.noWaAdmin || "+628XXXXXXXXXX";
+    let rawWaAdmin = String(t.waAdmin || t.noWaAdmin || "6282312915318").replace(/\D/g, "");
+    if (rawWaAdmin.startsWith("0")) {
+      rawWaAdmin = "62" + rawWaAdmin.substring(1);
+    } else if (rawWaAdmin.startsWith("8")) {
+      rawWaAdmin = "62" + rawWaAdmin;
+    }
+    let linkWaAdmin = `https://wa.me/${rawWaAdmin}`;
 
     pesanRincianAtauLunas = teksTunggakan + `-------------------------------------------------------------------
 - *Total Harus Dibayar: ${formatTotalHarusDibayar}*
@@ -786,7 +792,7 @@ Silakan lakukan pembayaran melalui *${t.noRekBsi}*. Pembayaran paling lambat *ta
 📄 Detail rincian tagihan tersedia dalam dokumen PDF berikut:
 ${t.linkPdf}
 
-Konfirmasi pembayaran ke *Admin Air: ${nomorWaAdmin}* (Format: Nama Pelanggan - Blok/Nomor Rumah - Bulan Tagihan).
+Konfirmasi pembayaran ke *Admin Air:* ${linkWaAdmin} (Format: Nama Pelanggan - Blok/Nomor Rumah - Bulan Tagihan).
 
 Terima kasih atas kerjasamanya. 🙏
 Pengelola Air The Green`;
