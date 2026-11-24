@@ -714,6 +714,17 @@ function getBulanFullText(bulanTahunStr) {
   return monthsFull[monthIdx] + " " + thn;
 }
 
+function formatKavlingStrip(kavlingStr) {
+  if (!kavlingStr) return "";
+  let clean = String(kavlingStr).trim().toUpperCase();
+  if (clean.includes("-")) return clean;
+  const match = clean.match(/^([A-Z]+)(\d+[A-Z]*)$/);
+  if (match) {
+    return `${match[1]}-${match[2]}`;
+  }
+  return clean;
+}
+
 function kirimWaTagihan(t, btnElement) {
   const activeSess = JSON.parse(sessionStorage.getItem("user_session") || "{}");
   if (activeSess.role === "Viewer") return;
@@ -735,10 +746,11 @@ function kirimWaTagihan(t, btnElement) {
 
   let tunggakanSebelumnya = Number(t.tunggakanSebelumnya) || 0;
   let namaPerumahan = t.perumahan || "The Green City View";
+  let kavlingDisplay = formatKavlingStrip(t.kavling);
   let rentangSiklusText = getRentangSiklusText(t.bulanTahun);
   let bulanFullText = getBulanFullText(t.bulanTahun);
 
-  let headerInfo = `Yth. Bapak/Ibu *${t.nama}* (${namaPerumahan} / *${t.kavling}*),
+  let headerInfo = `Yth. Bapak/Ibu *${t.nama}* (${namaPerumahan} / *${kavlingDisplay}*),
 
 Berikut disampaikan informasi tagihan air untuk periode *${bulanFullText}* ${rentangSiklusText}:
 
@@ -756,7 +768,7 @@ Berikut disampaikan informasi tagihan air untuk periode *${bulanFullText}* ${ren
                              `Terima kasih, pembayaran untuk periode ini telah kami terima dan tercatat lunas. 🙏
 
 ` +
-                             `📄 *Detail rincian tagihan tersedia dalam dokumen PDF berikut:*
+                             `📄 *Detail rincian tagihan tersedia dalam dokumen PDF pada link berikut:*
 ${t.linkPdf}`;
   } else {
     let tagihanAktif = statusLower === 'dicicil' ? t.sisaTagihan : t.totalTagihan;
@@ -783,13 +795,14 @@ ${t.linkPdf}`;
       rawWaAdmin = "62" + rawWaAdmin;
     }
     let linkWaAdmin = `https://wa.me/${rawWaAdmin}`;
+    let noRekClean = String(t.noRekBsi || "").trim().replace(/\.+$/, "");
 
     pesanRincianAtauLunas = teksTunggakan + `-------------------------------------------------------------------
 - *Total Harus Dibayar: ${formatTotalHarusDibayar}*
 
-Silakan lakukan pembayaran melalui *${t.noRekBsi}*. Pembayaran paling lambat *tanggal 15*.
+Silakan lakukan pembayaran melalui *${noRekClean}*. Pembayaran paling lambat *tanggal 15*.
 
-📄 Detail rincian tagihan tersedia dalam dokumen PDF berikut:
+📄 Detail rincian tagihan tersedia dalam dokumen PDF pada link berikut:
 ${t.linkPdf}
 
 Konfirmasi pembayaran ke *Admin Air:* ${linkWaAdmin} (Format: Nama Pelanggan - Blok/Nomor Rumah - Bulan Tagihan).
