@@ -148,7 +148,7 @@ function renderTagihanTable(list) {
         waBtnTitle = "Pesan WA sudah dikirim";
       } else {
         waBtnClass = "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm";
-        waBtnTitle = "Kirim Tagihan via WhatsApp";
+        waBtnTitle = isLunas ? "Kirim Bukti Pembayaran via WhatsApp" : "Kirim Tagihan via WhatsApp";
       }
 
       return `
@@ -714,6 +714,23 @@ function getBulanFullText(bulanTahunStr) {
   return monthsFull[monthIdx] + " " + thn;
 }
 
+function formatTanggalBayarIndo(tglStr) {
+  if (!tglStr || tglStr === "-" || tglStr.toLowerCase() === "pemutihan") return "";
+  const parts = String(tglStr).trim().split("/");
+  if (parts.length !== 3) return String(tglStr).trim();
+  const monthsFull = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+  const dayNum = parseInt(parts[0], 10);
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const yearStr = parts[2];
+  if (!isNaN(dayNum) && monthIdx >= 0 && monthIdx <= 11) {
+    return `${dayNum} ${monthsFull[monthIdx]} ${yearStr}`;
+  }
+  return String(tglStr).trim();
+}
+
 function formatKavlingStrip(kavlingStr) {
   if (!kavlingStr) return "";
   let clean = String(kavlingStr).trim().toUpperCase();
@@ -750,26 +767,63 @@ function kirimWaTagihan(t, btnElement) {
   let rentangSiklusText = getRentangSiklusText(t.bulanTahun);
   let bulanFullText = getBulanFullText(t.bulanTahun);
 
-  let headerInfo = `Yth. Bapak/Ibu *${t.nama}* (${namaPerumahan} / *${kavlingDisplay}*),
-
-Berikut disampaikan informasi tagihan air untuk periode *${bulanFullText}* ${rentangSiklusText}:
-
-`;
-
-  let pesanRincianAtauLunas = "";
+  let pesan = "";
   const statusLower = (t.statusBayar || "").toLowerCase();
   
   if (statusLower === "lunas" || statusLower === "pemutihan denda") {
-    pesanRincianAtauLunas = `- Total Tagihan: *${t.totalFormatted}*
-` +
-                             `- Status Pembayaran: *Lunas*
+    let totalBayarLunas = Number(t.totalTagihan) || 0;
+    let daftarPeriodeLunas = [t.bulanTahun];
+    const tglBayarRaw = String(t.tanggalBayar || "").trim();
+    const buktiRaw = String(t.buktiUrl || "-").trim();
 
-` +
-                             `Terima kasih, pembayaran untuk periode ini telah kami terima dan tercatat lunas. 🙏
+    if (
+      typeof rawListTagihan !== "undefined" &&
+      Array.isArray(rawListTagihan) &&
+      tglBayarRaw !== "" &&
+      tglBayarRaw !== "-" &&
+      tglBayarRaw.toLowerCase() !== "pemutihan"
+    ) {
+      const targetDateObj = parseBulanTahunToDate(t.bulanTahun);
+      const batchItems = rawListTagihan
+        .filter(item => {
+          if (String(item.kavling || "").toUpperCase().trim() !== String(t.kavling || "").toUpperCase().trim()) return false;
+          const stItem = (item.statusBayar || "").toLowerCase();
+          if (stItem !== "lunas" && stItem !== "pemutihan denda") return false;
+          const itemDateObj = parseBulanTahunToDate(item.bulanTahun);
+          if (itemDateObj > targetDateObj) return false;
+          return String(item.tanggalBayar || "").trim() === tglBayarRaw &&
+                 String(item.buktiUrl || "-").trim() === buktiRaw;
+        })
+        .sort((a, b) => parseBulanTahunToDate(a.bulanTahun) - parseBulanTahunToDate(b.bulanTahun));
 
-` +
-                             `📄 *Detail rincian tagihan tersedia dalam dokumen PDF pada link berikut:*
-${t.linkPdf}`;
+      if (batchItems.length > 1) {
+        totalBayarLunas = batchItems.reduce((sum, item) => sum + (Number(item.totalTagihan) || 0), 0);
+        daftarPeriodeLunas = batchItems.map(item => item.bulanTahun);
+      }
+    }
+
+    let formatTotalLunas = "Rp " + new Intl.NumberFormat('id-ID').format(totalBayarLunas);
+    let tglBayarIndo = formatTanggalBayarIndo(tglBayarRaw);
+
+    let barisPeriodeMulti = daftarPeriodeLunas.length > 1
+      ? `- Periode Dibayar: ${daftarPeriodeLunas.join(", ")}\n`
+      : "";
+    let barisTanggalBayar = tglBayarIndo
+      ? `- Tanggal Bayar: ${tglBayarIndo}\n`
+      : "";
+
+    pesan = `Yth. Bapak/Ibu *${t.nama}* (${namaPerumahan} / *${kavlingDisplay}*),
+
+Terima kasih, pembayaran tagihan air untuk periode *${bulanFullText}* ${rentangSiklusText} telah kami terima dengan rincian sebagai berikut:
+
+${barisPeriodeMulti}- Total Pembayaran: ${formatTotalLunas}
+${barisTanggalBayar}- Status Pembayaran: LUNAS
+
+📄 Bukti pembayaran resmi tersedia dalam dokumen PDF pada link berikut:
+${t.linkPdf}
+
+Terima kasih atas pembayaran tepat waktu dan kerjasamanya. 🙏
+Pengelola Air The Green`;
   } else {
     let tagihanAktif = statusLower === 'dicicil' ? t.sisaTagihan : t.totalTagihan;
     let formatTagihanAktif = "Rp " + new Intl.NumberFormat('id-ID').format(tagihanAktif);
@@ -779,12 +833,12 @@ ${t.linkPdf}`;
     let teksTunggakan = "";
     if (tunggakanSebelumnya > 0) {
       let formatTunggakanLalu = "Rp " + new Intl.NumberFormat('id-ID').format(tunggakanSebelumnya);
-      teksTunggakan = `- Tagihan Bulan Ini: *${formatTagihanAktif}*
+      teksTunggakan = `- Tagihan Bulan Ini: ${formatTagihanAktif}
 ` +
-                      `- Tunggakan Sebelumnya: *${formatTunggakanLalu}*
+                      `- Tunggakan Sebelumnya: ${formatTunggakanLalu}
 `;
     } else {
-      teksTunggakan = `- Tagihan Bulan Ini: *${formatTagihanAktif}*
+      teksTunggakan = `- Tagihan Bulan Ini: ${formatTagihanAktif}
 `;
     }
 
@@ -797,8 +851,12 @@ ${t.linkPdf}`;
     let linkWaAdmin = `https://wa.me/${rawWaAdmin}`;
     let noRekClean = String(t.noRekBsi || "").trim().replace(/\.+$/, "");
 
-    pesanRincianAtauLunas = teksTunggakan + `-------------------------------------------------------------------
-- *Total Harus Dibayar: ${formatTotalHarusDibayar}*
+    pesan = `Yth. Bapak/Ibu *${t.nama}* (${namaPerumahan} / *${kavlingDisplay}*),
+
+Berikut disampaikan informasi tagihan air untuk periode *${bulanFullText}* ${rentangSiklusText}:
+
+` + teksTunggakan + `-------------------------------------------------------------------
+- Total Harus Dibayar: ${formatTotalHarusDibayar}
 
 Silakan lakukan pembayaran melalui *${noRekClean}*. Pembayaran paling lambat *tanggal 15*.
 
@@ -810,8 +868,6 @@ Konfirmasi pembayaran ke *Admin Air:* ${linkWaAdmin} (Format: Nama Pelanggan - B
 Terima kasih atas kerjasamanya. 🙏
 Pengelola Air The Green`;
   }
-
-  const pesan = headerInfo + pesanRincianAtauLunas;
   
   window.open("https://api.whatsapp.com/send?phone=" + formatWa + "&text=" + encodeURIComponent(pesan), "_blank");
 
