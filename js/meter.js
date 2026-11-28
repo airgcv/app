@@ -4,6 +4,7 @@
 
 let isFilterBelumDicatatActive = false;
 let pendingMeterUpdates = {}; // Menyimpan data yang sedang diketik sebelum di-save
+let isSavingMassal = false;   // Pengaman agar Ctrl+S / klik ganda tidak memicu simpan paralel
 
 function filterMeterTable() {
   if (isFilterBelumDicatatActive) return;
@@ -238,7 +239,8 @@ function hitungInline(kavling, sAwal) {
       pendingMeterUpdates[kavling] = {
           standAkhir: sAkhirVal,
           isReset: isReset,
-          standAwal: sAwal 
+          standAwal: sAwal,
+          isNewEntry: oriAkhir === "" // Tandai apakah admin mencatat data baru atau mengedit data lama
       };
 
       inputEl.classList.remove("border-slate-300", "border-emerald-300", "bg-slate-50");
@@ -269,6 +271,8 @@ function updateBatchSaveUI() {
 }
 
 async function prosesSimpanMassal() {
+  if (isSavingMassal) return; // Cegah klik ganda / tekan Ctrl+S berulang saat sedang menyimpan
+
   const userSess = JSON.parse(sessionStorage.getItem("user_session") || "{}");
   if (userSess.role === "Viewer") {
     showToast("Akses ditolak! Akun Viewer (Pengawas) tidak memiliki izin untuk menyimpan data meter.", "error");
@@ -278,61 +282,77 @@ async function prosesSimpanMassal() {
   const kavlingList = Object.keys(pendingMeterUpdates);
   if (kavlingList.length === 0) return;
 
+  isSavingMassal = true;
   const btn = document.getElementById("btnSimpanMassal");
-  btn.disabled = true;
+  if (btn) btn.disabled = true;
   
   const namaPetugas = userSess.nama ? userSess.nama : "Admin";
   
   let successCount = 0;
   let failCount = 0;
+  let duplicateMessages = [];
 
   showToast(`Menyimpan ${kavlingList.length} data meter. Harap tunggu...`, "info");
 
-  for (let i = 0; i < kavlingList.length; i++) {
-      const kavling = kavlingList[i];
-      const data = pendingMeterUpdates[kavling];
-      
-      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menyimpan (${i + 1} dari ${kavlingList.length})...`;
-      lucide.createIcons();
-      
-      if (Number(data.standAkhir) < Number(data.standAwal) && !data.isReset) {
-          failCount++;
-          continue;
-      }
+  try {
+    for (let i = 0; i < kavlingList.length; i++) {
+        const kavling = kavlingList[i];
+        const data = pendingMeterUpdates[kavling];
+        
+        if (btn) {
+          btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menyimpan (${i + 1} dari ${kavlingList.length})...`;
+          lucide.createIcons();
+        }
+        
+        if (Number(data.standAkhir) < Number(data.standAwal) && !data.isReset) {
+            failCount++;
+            continue;
+        }
 
-      try {
-          const res = await callApi({
-            action: "adminUpdateMeter",
-            kavling: kavling,
-            standAwal: data.standAwal,
-            standAkhir: data.standAkhir,
-            isResetMeter: data.isReset,
-            bulanTahun: activePeriodeMeter,
-            petugas: namaPetugas
-          });
-          
-          if (res.status === "success") {
-              successCount++;
-              delete pendingMeterUpdates[kavling];
-          } else {
-              failCount++;
-          }
-      } catch (e) {
-          failCount++;
-      }
+        try {
+            const res = await callApi({
+              action: "adminUpdateMeter",
+              kavling: kavling,
+              standAwal: data.standAwal,
+              standAkhir: data.standAkhir,
+              isResetMeter: data.isReset,
+              isNewEntry: !!data.isNewEntry,
+              bulanTahun: activePeriodeMeter,
+              petugas: namaPetugas
+            });
+            
+            if (res.status === "success") {
+                successCount++;
+                delete pendingMeterUpdates[kavling];
+            } else if (res.status === "duplicate") {
+                // Sudah lebih dulu dicatat oleh admin lain -> bersihkan antrean lokal & laporkan
+                delete pendingMeterUpdates[kavling];
+                duplicateMessages.push(res.message || `Kavling ${kavling} sudah dicatat admin lain.`);
+            } else {
+                failCount++;
+            }
+        } catch (e) {
+            failCount++;
+        }
+    }
+
+    if (duplicateMessages.length > 0) {
+        const infoPrefix = successCount > 0 ? `${successCount} data tersimpan. ` : "";
+        showToast(`${infoPrefix}Dilewati (sudah dicatat admin lain): ${duplicateMessages.join(" | ")}`, "info");
+    } else if (failCount === 0) {
+        showToast(`Sukses! ${successCount} data meter berhasil disimpan.`, "success");
+    } else {
+        showToast(`Selesai. ${successCount} berhasil, ${failCount} gagal (Bisa karena Stand Akhir < Stand Awal).`, "error");
+    }
+  } finally {
+    isSavingMassal = false;
+    if (btn) {
+      btn.innerHTML = `Simpan Sekarang <span class="bg-blue-800/40 border border-blue-400/30 px-1.5 py-0.5 rounded text-[10px] ml-1">Ctrl + S</span>`;
+      btn.disabled = false;
+    }
+    updateBatchSaveUI();
+    loadDashboardDataForTab('meter');
   }
-
-  if (failCount === 0) {
-      showToast(`Sukses! ${successCount} data meter berhasil disimpan.`, "success");
-  } else {
-      showToast(`Selesai. ${successCount} berhasil, ${failCount} gagal (Bisa karena Stand Akhir < Stand Awal).`, "error");
-  }
-
-  btn.innerHTML = `Simpan Sekarang <span class="bg-blue-800/40 border border-blue-400/30 px-1.5 py-0.5 rounded text-[10px] ml-1">Ctrl + S</span>`;
-  btn.disabled = false;
-  
-  updateBatchSaveUI();
-  loadDashboardDataForTab('meter');
 }
 
 function exportExcelMeter() {
