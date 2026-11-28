@@ -250,6 +250,9 @@ function checkAndHandleAppVersion(resObj) {
 
 async function loadDashboardData() {
   showToast("Memuat data...", "info");
+  if (typeof window.invalidateRiwayatBayarCache === "function") {
+    window.invalidateRiwayatBayarCache();
+  }
   await fetchAndUpdateAllData();
   showToast("Data berhasil diperbarui!", "success");
 }
@@ -295,6 +298,9 @@ async function fetchAndUpdateAllData(isBackground = false) {
         const selectEl = document.getElementById("selectLimit_" + key);
         if (selectEl) selectEl.value = globalLimit;
       });
+      if (typeof window.syncDefaultPaginationRiwayatBayar === "function") {
+        window.syncDefaultPaginationRiwayatBayar(globalLimit);
+      }
       isLimitInitialized = true;
     }
 
@@ -392,6 +398,7 @@ async function fetchAndUpdateAllData(isBackground = false) {
 
     renderPerumahanTabs();
     if (typeof filterTagihanTable === 'function') filterTagihanTable();
+    if (typeof window.cekSelisihDenganSheetTagihan === 'function') window.cekSelisihDenganSheetTagihan();
   }
 }
 
@@ -469,6 +476,9 @@ async function loadDashboardDataForTab(tabType) {
       if (typeof filterMeterTable === 'function') filterMeterTable();
     }
   } else if (tabType === 'tagihan') {
+    if (typeof window.invalidateRiwayatBayarCache === "function") {
+      window.invalidateRiwayatBayarCache();
+    }
     const res = await callApi({ action: "getDashboardData", periode: activePeriodeTagihan });
     if (res && res.status === "success") {
       if (checkAndHandleAppVersion(res)) return;
@@ -504,6 +514,7 @@ async function loadDashboardDataForTab(tabType) {
 
       renderPerumahanTabs();
       if (typeof filterTagihanTable === 'function') filterTagihanTable();
+      if (typeof window.cekSelisihDenganSheetTagihan === 'function') window.cekSelisihDenganSheetTagihan();
     }
   }
 }
@@ -604,18 +615,16 @@ function aturMenuBerdasarkanRole(role, nama) {
     const btnMeter = document.getElementById("btn-tabMeter");
     const btnTagihan = document.getElementById("btn-tabTagihan");
     const btnPelanggan = document.getElementById("btn-tabPelanggan");
-    
-    // Pastikan tombol Tunggakan & Deposit dideklarasikan di sini
     const btnTunggakan = document.getElementById("btn-tabTunggakan");
     const btnDeposit = document.getElementById("btn-tabDeposit");
+    const btnRiwayatBayar = document.getElementById("btn-tabRiwayatBayar");
 
     if (btnMeter) btnMeter.classList.remove('hidden');
     if (btnTagihan) btnTagihan.classList.remove('hidden');
     if (btnPelanggan) btnPelanggan.classList.remove('hidden');
-    
-    // Buka akses tampil untuk Admin Tagihan
     if (btnTunggakan) btnTunggakan.classList.remove('hidden');
     if (btnDeposit) btnDeposit.classList.remove('hidden');
+    if (btnRiwayatBayar) btnRiwayatBayar.classList.remove('hidden');
 
     switchTab('tabMeter');
   } else if (role === "Petugas Lapangan") {
@@ -628,12 +637,14 @@ function aturMenuBerdasarkanRole(role, nama) {
     const btnPelanggan = document.getElementById("btn-tabPelanggan");
     const btnTunggakan = document.getElementById("btn-tabTunggakan");
     const btnDeposit = document.getElementById("btn-tabDeposit");
+    const btnRiwayatBayar = document.getElementById("btn-tabRiwayatBayar");
 
     if (btnMeter) btnMeter.classList.remove('hidden');
     if (btnTagihan) btnTagihan.classList.remove('hidden');
     if (btnPelanggan) btnPelanggan.classList.remove('hidden');
     if (btnTunggakan) btnTunggakan.classList.remove('hidden');
     if (btnDeposit) btnDeposit.classList.remove('hidden');
+    if (btnRiwayatBayar) btnRiwayatBayar.classList.remove('hidden');
     
     switchTab('tabMeter');
   }
@@ -916,6 +927,8 @@ function switchTab(tabId) {
 
   if (tabId === 'tabPelanggan') {
     loadDataPelanggan();
+  } else if (tabId === 'tabRiwayatBayar' && typeof loadRiwayatBayarData === 'function') {
+    loadRiwayatBayarData();
   }
 }
 

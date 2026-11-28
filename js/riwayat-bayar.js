@@ -1,5 +1,5 @@
 /**
- * RIWAYAT-BAYAR.JS - Buku Kas, Audit Bukti Transfer & Unduh Struk
+ * RIWAYAT-BAYAR.JS - Buku Kas, Audit Bukti Transfer, Unduh Struk & Rekonsiliasi Otomatis
  * Mengambil seluruh log dari sheet Riwayat_Cicilan via endpoint getAllRiwayatCicilan
  */
 
@@ -59,6 +59,9 @@ function applyDefaultPaginationRiwayatBayar(customVal) {
 }
 
 window.syncDefaultPaginationRiwayatBayar = applyDefaultPaginationRiwayatBayar;
+window.invalidateRiwayatBayarCache = function() {
+  riwayatBayarLoadedOnce = false;
+};
 
 function parseTanggalBayarToTs(tglStr, waktuInputStr) {
   let baseTs = 0;
@@ -210,7 +213,7 @@ async function loadRiwayatBayarData(forceRefresh = false) {
       `;
     }
     if (typeof showToast === "function") {
-      showToast("Gagal Memuat", err.message, "error");
+      showToast("Gagal Memuat: " + err.message, "error");
     }
   }
 }
@@ -354,7 +357,69 @@ function updateSummaryRiwayatBayar() {
   if (elLunasCicil) elLunasCicil.textContent = `${countLunas} Lunas • ${countCicil} Cicilan`;
   if (elBatal) elBatal.textContent = `${countBatal} transaksi pembatalan`;
   if (elBukti) elBukti.textContent = `${countBukti} Struk Transfer • ${countDeposit} Deposit`;
+
+  cekSelisihDenganSheetTagihan();
 }
+
+function cekSelisihDenganSheetTagihan() {
+  const elCount = document.getElementById("rbStatCountTransaksi");
+  if (!elCount || typeof rawListTagihan === "undefined" || !Array.isArray(rawListTagihan) || rawListTagihan.length === 0) return;
+
+  const periodeFilter = (document.getElementById("filterPeriodeRiwayatBayar")?.value || "ALL").toUpperCase();
+  const statusFilter = (document.getElementById("filterStatusRiwayatBayar")?.value || "ALL").toUpperCase();
+  const buktiFilter = (document.getElementById("filterBuktiRiwayatBayar")?.value || "ALL").toUpperCase();
+  const keyword = (document.getElementById("searchRiwayatBayar")?.value || "").trim();
+
+  const activePerTagihan = String(typeof activePeriodeTagihan !== "undefined" ? activePeriodeTagihan : "")
+    .replace(/Aug/i, "Agt").trim().toUpperCase();
+
+  // Jalankan rekonsiliasi hanya ketika periode filter sama dengan periode aktif tab Tagihan dan filter status/bukti dalam keadaan ALL
+  if (periodeFilter === "ALL" || periodeFilter !== activePerTagihan || statusFilter !== "ALL" || buktiFilter !== "ALL" || keyword !== "") return;
+
+  const mapRiwayat = new Map();
+  allRiwayatBayarList.forEach(item => {
+    const p = String(item.periode || "").replace(/Aug/i, "Agt").trim().toUpperCase();
+    if (p !== activePerTagihan) return;
+    const kav = String(item.kavling || "").trim().toUpperCase();
+    mapRiwayat.set(kav, (mapRiwayat.get(kav) || 0) + (Number(item.nominalBayar) || 0));
+  });
+
+  const mapTagihan = new Map();
+  rawListTagihan.forEach(t => {
+    const p = String(t.bulanTahun || "").replace(/Aug/i, "Agt").trim().toUpperCase();
+    if (p !== activePerTagihan) return;
+    const kav = String(t.kavling || "").trim().toUpperCase();
+    const st = (t.statusBayar || "").toLowerCase();
+
+    let bayarDiTagihan = 0;
+    if (st === "lunas" || st === "pemutihan denda") {
+      bayarDiTagihan = Number(t.nominalDibayar) > 0 ? Number(t.nominalDibayar) : (Number(t.totalTagihan) || 0);
+    } else if (st === "dicicil") {
+      bayarDiTagihan = Number(t.nominalDibayar) || 0;
+    }
+
+    mapTagihan.set(kav, (mapTagihan.get(kav) || 0) + bayarDiTagihan);
+  });
+
+  const allKavlings = new Set([...mapRiwayat.keys(), ...mapTagihan.keys()]);
+  const daftarSelisih = [];
+
+  allKavlings.forEach(kav => {
+    const bayarDiRiwayat = mapRiwayat.get(kav) || 0;
+    const bayarDiTagihan = mapTagihan.get(kav) || 0;
+    const selisih = bayarDiRiwayat - bayarDiTagihan;
+    if (selisih !== 0) {
+      const tanda = selisih > 0 ? "+" : "";
+      daftarSelisih.push(`${kav} (${tanda}Rp ${selisih.toLocaleString("id-ID")})`);
+    }
+  });
+
+  if (daftarSelisih.length > 0) {
+    elCount.innerHTML = `${filteredRiwayatBayarList.length} mutasi • <span class="text-amber-700 font-bold" title="Perbedaan catatan antara sheet Riwayat_Cicilan dan sheet Tagihan">Selisih: ${daftarSelisih.join(", ")}</span>`;
+  }
+}
+
+window.cekSelisihDenganSheetTagihan = cekSelisihDenganSheetTagihan;
 
 function renderRiwayatBayarTable() {
   const tbody = document.getElementById("tbodyRiwayatBayar");
@@ -536,7 +601,7 @@ function closeModalPreviewBukti() {
 function exportExcelRiwayatBayar() {
   if (!filteredRiwayatBayarList || filteredRiwayatBayarList.length === 0) {
     if (typeof showToast === "function") {
-      showToast("Data Kosong", "Tidak ada data riwayat pembayaran untuk diexport.", "warning");
+      showToast("Tidak ada data riwayat pembayaran untuk diexport.", "warning");
     }
     return;
   }
