@@ -806,18 +806,18 @@ function kirimWaTagihan(t, btnElement) {
     let tglBayarIndo = formatTanggalBayarIndo(tglBayarRaw);
 
     let barisPeriodeMulti = daftarPeriodeLunas.length > 1
-      ? `- Periode Dibayar: ${daftarPeriodeLunas.join(", ")}\n`
+      ? `• Periode Dibayar: ${daftarPeriodeLunas.join(", ")}\n`
       : "";
     let barisTanggalBayar = tglBayarIndo
-      ? `- Tanggal Bayar: ${tglBayarIndo}\n`
+      ? `• Tanggal Bayar: ${tglBayarIndo}\n`
       : "";
 
     pesan = `Yth. Bapak/Ibu *${t.nama}* (${namaPerumahan} / *${kavlingDisplay}*),
 
 Terima kasih, pembayaran tagihan air untuk periode *${bulanFullText}* ${rentangSiklusText} telah kami terima dengan rincian sebagai berikut:
 
-${barisPeriodeMulti}- Total Pembayaran: ${formatTotalLunas}
-${barisTanggalBayar}- Status Pembayaran: LUNAS
+${barisPeriodeMulti}• Total Pembayaran: ${formatTotalLunas}
+${barisTanggalBayar}• Status Pembayaran: LUNAS
 
 📄 Bukti pembayaran resmi tersedia dalam dokumen PDF pada link berikut:
 ${t.linkPdf}
@@ -833,12 +833,12 @@ Pengelola Air The Green`;
     let teksTunggakan = "";
     if (tunggakanSebelumnya > 0) {
       let formatTunggakanLalu = "Rp " + new Intl.NumberFormat('id-ID').format(tunggakanSebelumnya);
-      teksTunggakan = `- Tagihan Bulan Ini: ${formatTagihanAktif}
+      teksTunggakan = `• Tagihan Bulan Ini: ${formatTagihanAktif}
 ` +
-                      `- Tunggakan Sebelumnya: ${formatTunggakanLalu}
+                      `• Tunggakan Sebelumnya: ${formatTunggakanLalu}
 `;
     } else {
-      teksTunggakan = `- Tagihan Bulan Ini: ${formatTagihanAktif}
+      teksTunggakan = `• Tagihan Bulan Ini: ${formatTagihanAktif}
 `;
     }
 
@@ -856,7 +856,7 @@ Pengelola Air The Green`;
 Berikut disampaikan informasi tagihan air untuk periode *${bulanFullText}* ${rentangSiklusText}:
 
 ` + teksTunggakan + `-------------------------------------------------------------------
-- Total Harus Dibayar: ${formatTotalHarusDibayar}
+• Total Harus Dibayar: ${formatTotalHarusDibayar}
 
 Silakan lakukan pembayaran melalui *${noRekClean}*. Pembayaran paling lambat *tanggal 15*.
 
@@ -1520,7 +1520,7 @@ function closeModalRiwayatCicilan() {
 
 function parseBulanTahunToDate(bulanTahunStr) {
   if (!bulanTahunStr) return new Date(0);
-  const parts = bulanTahunStr.split("-");
+  const parts = String(bulanTahunStr).trim().split("-");
   if (parts.length !== 2) return new Date(0);
 
   const mapBulan = { 
@@ -1528,7 +1528,7 @@ function parseBulanTahunToDate(bulanTahunStr) {
     "JUL":6, "AGT":7, "AUG":7, "SEP":8, "OKT":9, "OCT":9, "NOV":10, "DES":11, "DEC":11 
   };
   
-  const bName = parts[0].toUpperCase();
+  const bName = parts[0].trim().toUpperCase();
   const tahun = parseInt(parts[1], 10);
   const bIdx = mapBulan[bName] !== undefined ? mapBulan[bName] : 0;
 
@@ -1657,35 +1657,196 @@ async function downloadPdf(kavling, bulan, btnElement) {
   }
 }
 
-function exportExcelTagihan() {
-  const filteredTagihan = rawListTagihan.filter(t => {
-    const tNorm = String(t.bulanTahun || "").replace(/Aug/i, "Agt").trim().toLowerCase();
-    const actNorm = String(activePeriodeTagihan || "").replace(/Aug/i, "Agt").trim().toLowerCase();
-    return tNorm === actNorm;
-  });
+function getKategoriBlokItem(item) {
+  if (typeof getKategoriTab === "function") {
+    return getKategoriTab(item);
+  }
+  const perum = (item.perumahan || "The Green City View").trim();
+  const kav = (item.kavling || "").trim();
+  if (perum === "The Green City View") {
+    const h = kav.charAt(0).toUpperCase();
+    return isNaN(h) && h !== "" ? "Blok " + h : "Blok Lainnya";
+  }
+  if (perum === "D Green Jatihandap" || perum === "DGJH") return "DGJH";
+  if (perum === "Blok Luar") return "Blok Luar";
+  return perum || "Lainnya";
+}
 
-  if (!filteredTagihan || filteredTagihan.length === 0) {
-    showToast("Tidak ada data tagihan untuk periode " + activePeriodeTagihan + ".", "error");
+function getRankBlokTagihan(item) {
+  const kat = getKategoriBlokItem(item);
+  if (kat === "DGJH") return { rank: 2, label: kat };
+  if (kat === "Blok Luar") return { rank: 3, label: kat };
+  if (kat.startsWith("Blok ") && kat !== "Blok Lainnya") return { rank: 1, label: kat };
+  if (kat === "Blok Lainnya") return { rank: 1.5, label: kat };
+  return { rank: 4, label: kat };
+}
+
+function normalizeKavlingKey(kavlingStr) {
+  return String(kavlingStr || "").trim().toUpperCase().replace(/[\s-]+/g, "");
+}
+
+function normalizePeriodeKey(periodeStr) {
+  return String(periodeStr || "").replace(/Aug/i, "Agt").trim().toUpperCase();
+}
+
+function compareByBlokDanKavling(a, b) {
+  const blokA = getRankBlokTagihan(a);
+  const blokB = getRankBlokTagihan(b);
+  if (blokA.rank !== blokB.rank) return blokA.rank - blokB.rank;
+  if (blokA.label !== blokB.label) {
+    return blokA.label.localeCompare(blokB.label, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  const kavA = normalizeKavlingKey(a.kavling);
+  const kavB = normalizeKavlingKey(b.kavling);
+  return kavA.localeCompare(kavB, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+async function exportExcelTagihan() {
+  if ((!rawListPelanggan || rawListPelanggan.length === 0) && typeof loadDataPelanggan === "function") {
+    showToast("Memuat data master pelanggan...", "info");
+    await loadDataPelanggan();
+  }
+
+  const daftarPelanggan = Array.isArray(rawListPelanggan) ? [...rawListPelanggan] : [];
+  const daftarTagihan = Array.isArray(rawListTagihan) ? [...rawListTagihan] : [];
+
+  if (daftarPelanggan.length === 0 && daftarTagihan.length === 0) {
+    showToast("Tidak ada data pelanggan maupun tagihan untuk diexport.", "error");
     return;
   }
 
-  const excelData = filteredTagihan.map(t => ({
-    "Kavling": t.kavling || '',
-    "Perumahan": t.perumahan || 'The Green City View',
-    "Nama Warga": t.nama || '',
-    "Periode": t.bulanTahun,
-    "Pemakaian (m³)": Number(t.pemakaianM3) || 0,
-    "Total Tagihan (Rp)": Number(t.totalTagihan) || 0,
-    "Status Pembayaran": t.statusBayar || 'Belum Bayar',
-    "Status WA": t.statusWa || 'BELUM'
-  }));
+  // 1. Urutkan master pelanggan: Blok A (A1-A17) -> Blok B dst. s/d Blok M -> DGJH -> Blok Luar
+  daftarPelanggan.sort(compareByBlokDanKavling);
+
+  // 2. Kumpulkan & urutkan daftar periode dari terakhir (terbaru) sampai terlama
+  const periodeMap = new Map();
+  daftarTagihan.forEach(t => {
+    const pKey = normalizePeriodeKey(t.bulanTahun);
+    if (!pKey) return;
+    if (!periodeMap.has(pKey)) {
+      periodeMap.set(pKey, {
+        key: pKey,
+        label: String(t.bulanTahun || "").replace(/Aug/i, "Agt").trim(),
+        time: parseBulanTahunToDate(t.bulanTahun).getTime()
+      });
+    }
+  });
+
+  const sortedPeriodes = Array.from(periodeMap.values()).sort((a, b) => b.time - a.time);
+  if (sortedPeriodes.length === 0) {
+    sortedPeriodes.push({ key: "-", label: "-", time: 0 });
+  }
+
+  // Indeks tagihan berdasarkan (Periode + KategoriBlok + Kavling) serta fallback (Periode + Kavling)
+  const mapTagihanByPerComp = new Map();
+  const mapTagihanByPerKav = new Map();
+  const kavCountsInPelanggan = new Map();
+
+  daftarPelanggan.forEach(p => {
+    const kOnly = normalizeKavlingKey(p.kavling);
+    kavCountsInPelanggan.set(kOnly, (kavCountsInPelanggan.get(kOnly) || 0) + 1);
+  });
+
+  daftarTagihan.forEach(t => {
+    const pKey = normalizePeriodeKey(t.bulanTahun);
+    const kat = getKategoriBlokItem(t).toUpperCase();
+    const kOnly = normalizeKavlingKey(t.kavling);
+
+    const compKey = `${pKey}__${kat}__${kOnly}`;
+    if (!mapTagihanByPerComp.has(compKey)) mapTagihanByPerComp.set(compKey, []);
+    mapTagihanByPerComp.get(compKey).push(t);
+
+    const kavKey = `${pKey}__${kOnly}`;
+    if (!mapTagihanByPerKav.has(kavKey)) mapTagihanByPerKav.set(kavKey, []);
+    mapTagihanByPerKav.get(kavKey).push(t);
+  });
+
+  const usedTagihanSet = new Set();
+  const excelData = [];
+
+  // 3. Loop per Periode (terbaru -> terlama), di dalamnya urut seluruh pelanggan A1-A17, Blok B dst., DGJH, Blok Luar
+  sortedPeriodes.forEach(per => {
+    daftarPelanggan.forEach(p => {
+      const kat = getKategoriBlokItem(p).toUpperCase();
+      const kOnly = normalizeKavlingKey(p.kavling);
+      const compKey = `${per.key}__${kat}__${kOnly}`;
+
+      let matchedTagihan = mapTagihanByPerComp.get(compKey) || [];
+      if (matchedTagihan.length === 0 && kavCountsInPelanggan.get(kOnly) === 1) {
+        matchedTagihan = mapTagihanByPerKav.get(`${per.key}__${kOnly}`) || [];
+      }
+
+      if (matchedTagihan.length > 0) {
+        matchedTagihan.forEach(t => {
+          usedTagihanSet.add(t);
+          excelData.push({
+            "Kavling": p.kavling || t.kavling || '',
+            "Perumahan": p.perumahan || t.perumahan || 'The Green City View',
+            "Nama Warga": p.nama || t.nama || '',
+            "Status Kavling": p.statusKavling || 'Aktif',
+            "Periode": t.bulanTahun || per.label,
+            "Pemakaian (m³)": Number(t.pemakaianM3) || 0,
+            "Total Tagihan (Rp)": Number(t.totalTagihan) || 0,
+            "Status Pembayaran": t.statusBayar || 'Belum Bayar',
+            "Status WA": t.statusWa || 'BELUM'
+          });
+        });
+      } else {
+        excelData.push({
+          "Kavling": p.kavling || '',
+          "Perumahan": p.perumahan || 'The Green City View',
+          "Nama Warga": p.nama || '',
+          "Status Kavling": p.statusKavling || 'Aktif',
+          "Periode": per.label,
+          "Pemakaian (m³)": 0,
+          "Total Tagihan (Rp)": 0,
+          "Status Pembayaran": 'Belum Ada Tagihan',
+          "Status WA": '-'
+        });
+      }
+    });
+
+    // Sisipkan jika ada tagihan pada periode ini yang kavlingnya belum tercatat di master Pelanggan
+    const orphanInPeriod = daftarTagihan
+      .filter(t => !usedTagihanSet.has(t) && normalizePeriodeKey(t.bulanTahun) === per.key)
+      .sort(compareByBlokDanKavling);
+
+    orphanInPeriod.forEach(t => {
+      usedTagihanSet.add(t);
+      excelData.push({
+        "Kavling": t.kavling || '',
+        "Perumahan": t.perumahan || 'The Green City View',
+        "Nama Warga": t.nama || '',
+        "Status Kavling": 'Tidak Terdaftar',
+        "Periode": t.bulanTahun || per.label,
+        "Pemakaian (m³)": Number(t.pemakaianM3) || 0,
+        "Total Tagihan (Rp)": Number(t.totalTagihan) || 0,
+        "Status Pembayaran": t.statusBayar || 'Belum Bayar',
+        "Status WA": t.statusWa || 'BELUM'
+      });
+    });
+  });
 
   const worksheet = XLSX.utils.json_to_sheet(excelData);
+  worksheet['!cols'] = [
+    { wch: 12 }, // Kavling
+    { wch: 24 }, // Perumahan
+    { wch: 28 }, // Nama Warga
+    { wch: 16 }, // Status Kavling
+    { wch: 14 }, // Periode
+    { wch: 16 }, // Pemakaian (m³)
+    { wch: 20 }, // Total Tagihan (Rp)
+    { wch: 20 }, // Status Pembayaran
+    { wch: 14 }  // Status WA
+  ];
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Tagihan");
 
-  XLSX.writeFile(workbook, `Backup_Tagihan_${activePeriodeTagihan}.xlsx`);
-  showToast("File Excel (.xlsx) Tagihan berhasil diunduh!", "success");
+  const tglBackup = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(workbook, `Backup_Tagihan_Per_Periode_${tglBackup}.xlsx`);
+  showToast(`Berhasil mengunduh ${excelData.length} baris tagihan terurut per periode!`, "success");
 }
 
 function filterBelumBayar() {
