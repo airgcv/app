@@ -7,8 +7,58 @@ let allRiwayatBayarList = [];
 let filteredRiwayatBayarList = [];
 let riwayatBayarLoadedOnce = false;
 let riwayatBayarInitialPeriodeSet = false;
+let riwayatBayarUserChangedLimit = false;
 let currentPageRiwayatBayar = 1;
-let limitRiwayatBayar = 25;
+let limitRiwayatBayar = 10;
+
+function applyDefaultPaginationRiwayatBayar(customVal) {
+  if (riwayatBayarUserChangedLimit && customVal === undefined) return;
+
+  let rawVal = customVal;
+
+  // 1. Cek objek pengaturan global jika tersedia
+  if (rawVal === undefined || rawVal === null || rawVal === "") {
+    const cfg = window.appPengaturan || window.pengaturan || window.appConfig || window.configData || {};
+    if (cfg.default_pagination !== undefined && cfg.default_pagination !== "") {
+      rawVal = cfg.default_pagination;
+    }
+  }
+
+  // 2. Cek state paginasi dari app.js jika tersedia
+  if ((rawVal === undefined || rawVal === null || rawVal === "") && typeof paginationState !== "undefined" && paginationState.meter && paginationState.meter.limit) {
+    rawVal = paginationState.meter.limit;
+  }
+
+  // 3. Fallback: ikuti nilai dropdown tab utama yang sudah disinkronkan dari sheet Pengaturan
+  if (rawVal === undefined || rawVal === null || rawVal === "") {
+    const refSelect = document.getElementById("selectLimit_meter") || document.getElementById("selectLimit_tagihan");
+    if (refSelect && refSelect.value) {
+      rawVal = refSelect.value;
+    }
+  }
+
+  if (rawVal === undefined || rawVal === null || rawVal === "") {
+    rawVal = 10;
+  }
+
+  const strVal = String(rawVal).trim().toLowerCase();
+  limitRiwayatBayar = strVal === "all" ? "all" : (parseInt(strVal, 10) || 10);
+
+  const selectEl = document.getElementById("selectLimit_riwayatBayar");
+  if (selectEl) {
+    const targetOptionVal = limitRiwayatBayar === "all" ? "all" : String(limitRiwayatBayar);
+    const exists = Array.from(selectEl.options).some(opt => opt.value === targetOptionVal);
+    if (!exists && targetOptionVal !== "all") {
+      const opt = document.createElement("option");
+      opt.value = targetOptionVal;
+      opt.textContent = `${targetOptionVal} baris`;
+      selectEl.insertBefore(opt, selectEl.firstChild);
+    }
+    selectEl.value = targetOptionVal;
+  }
+}
+
+window.syncDefaultPaginationRiwayatBayar = applyDefaultPaginationRiwayatBayar;
 
 function parseTanggalBayarToTs(tglStr, waktuInputStr) {
   let baseTs = 0;
@@ -83,6 +133,8 @@ function getBatchKeyBayar(item) {
 }
 
 async function loadRiwayatBayarData(forceRefresh = false) {
+  applyDefaultPaginationRiwayatBayar();
+
   if (riwayatBayarLoadedOnce && !forceRefresh && allRiwayatBayarList.length > 0) {
     filterRiwayatBayarTable();
     return;
@@ -327,7 +379,7 @@ function renderRiwayatBayarTable() {
     return;
   }
 
-  const perPage = limitRiwayatBayar === "all" ? totalItems : Number(limitRiwayatBayar) || 25;
+  const perPage = limitRiwayatBayar === "all" ? totalItems : Number(limitRiwayatBayar) || 10;
   const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
   if (currentPageRiwayatBayar > totalPages) currentPageRiwayatBayar = totalPages;
 
@@ -434,7 +486,8 @@ function highlightBatchBayar(batchKey, isHover) {
 }
 
 function changeLimitRiwayatBayar(val) {
-  limitRiwayatBayar = val === "all" ? "all" : Number(val) || 25;
+  riwayatBayarUserChangedLimit = true;
+  limitRiwayatBayar = val === "all" ? "all" : Number(val) || 10;
   currentPageRiwayatBayar = 1;
   renderRiwayatBayarTable();
 }
