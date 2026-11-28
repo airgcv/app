@@ -182,7 +182,7 @@
           <i data-lucide="droplets" class="w-6 h-6"></i>
         </div>
         <div>
-          <h1 class="font-extrabold text-base leading-none text-white">AIR <span class="text-blue-400 font-medium text-xs ml-1 bg-blue-500/10 border border-blue-400/20 px-2 py-0.5 rounded-full">THE GREEN</SPAN></H1>
+          <h1 class="font-extrabold text-base leading-none text-white">AIR <span class="text-blue-400 font-medium text-xs ml-1 bg-blue-500/10 border border-blue-400/20 px-2 py-0.5 rounded-full">THE GREEN</span></h1>
           <p class="text-[11px] text-slate-400 mt-0.5">Sistem Pengelolaan Air The Green</p>
         </div>
       </div>
@@ -272,21 +272,24 @@
     </div>
 
     <div class="sticky top-3 z-40 bg-white/95 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/80 shadow-lg shadow-slate-200/50 flex gap-1 overflow-x-auto text-xs font-semibold transition-all">
-      <button onclick="switchTab('tabMeter')" id="btn-tabMeter" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all">
+      <button onclick="switchTab('tabMeter')" id="btn-tabMeter" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all whitespace-nowrap">
         <i data-lucide="gauge" class="w-4 h-4"></i> Catat & Verifikasi Meter
       </button>
-      <button onclick="switchTab('tabTagihan')" id="btn-tabTagihan" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all">
+      <button onclick="switchTab('tabTagihan')" id="btn-tabTagihan" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all whitespace-nowrap">
         <i data-lucide="file-text" class="w-4 h-4"></i> Tagihan & Unduh PDF
       </button>
-      <button onclick="switchTab('tabPelanggan')" id="btn-tabPelanggan" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all">
+      <button onclick="switchTab('tabPelanggan')" id="btn-tabPelanggan" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all whitespace-nowrap">
         <i data-lucide="users-2" class="w-4 h-4"></i> Data Pelanggan
       </button>
-      <button onclick="switchTab('tabTunggakan')" id="btn-tabTunggakan" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all">
+      <button onclick="switchTab('tabTunggakan')" id="btn-tabTunggakan" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all whitespace-nowrap">
         <i data-lucide="shield-alert" class="w-4 h-4"></i> Monitoring SP
       </button>
-      <button onclick="switchTab('tabDeposit'); if(typeof loadDepositData === 'function') loadDepositData();" id="btn-tabDeposit" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-emerald-600 transition-all relative">
+      <button onclick="switchTab('tabDeposit'); if(typeof loadDepositData === 'function') loadDepositData();" id="btn-tabDeposit" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-emerald-600 transition-all relative whitespace-nowrap">
         <i data-lucide="wallet" class="w-4 h-4"></i> Deposit Warga
         <span id="badgeLiveSync" class="hidden absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 live-pulse" title="Live Sync Aktif"></span>
+      </button>
+      <button onclick="switchTab('tabRiwayatBayar'); if(typeof loadRiwayatBayarData === 'function') loadRiwayatBayarData();" id="btn-tabRiwayatBayar" class="tab-btn px-4 py-3 rounded-xl flex items-center gap-2 text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-all whitespace-nowrap">
+        <i data-lucide="receipt" class="w-4 h-4"></i> Riwayat Bayar
       </button>
     </div>
 
@@ -563,6 +566,143 @@
             <tr><td colspan="7" class="py-6 text-center text-slate-400">Data deposit belum dimuat...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div id="tabRiwayatBayar" class="tab-content bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 space-y-5 hidden">
+      <div class="sticky top-[75px] z-30 bg-white pt-2 pb-3 space-y-3 shadow-[0_15px_10px_-15px_rgba(0,0,0,0.05)] border-b border-slate-100">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="receipt" class="w-5 h-5 text-blue-600"></i> Buku Kas & Riwayat Pembayaran
+            </h2>
+            <p class="text-[11px] text-slate-500 mt-0.5">Urutan transaksi terbaru ke terlama mengikuti periode tagihan & log bukti transfer</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <button onclick="exportExcelRiwayatBayar()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition-colors shadow-sm">
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i> Export Excel
+            </button>
+            <button onclick="loadRiwayatBayarData(true)" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition-colors">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2 pt-1">
+          <div class="relative lg:col-span-4">
+            <input type="text" id="searchRiwayatBayar" oninput="filterRiwayatBayarTable()" placeholder="Cari Kavling, Nama Warga, ID..." class="w-full border border-slate-200 rounded-xl pl-9 pr-8 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5"></i>
+            <button type="button" id="btnClearSearchRiwayatBayar" onclick="clearSearchRiwayatBayar()" class="hidden absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
+          </div>
+
+          <div class="lg:col-span-2">
+            <select id="filterPeriodeRiwayatBayar" onchange="filterRiwayatBayarTable()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <option value="ALL">Semua Periode</option>
+            </select>
+          </div>
+
+          <div class="lg:col-span-2">
+            <select id="filterStatusRiwayatBayar" onchange="filterRiwayatBayarTable()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <option value="ALL">Semua Status</option>
+              <option value="Lunas">Lunas</option>
+              <option value="Dicicil">Dicicil</option>
+              <option value="Pemutihan Denda">Pemutihan Denda</option>
+              <option value="Dibatalkan">Dibatalkan</option>
+            </select>
+          </div>
+
+          <div class="lg:col-span-2">
+            <select id="filterBuktiRiwayatBayar" onchange="filterRiwayatBayarTable()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <option value="ALL">Semua Bukti/Metode</option>
+              <option value="ADA_BUKTI">Ada Bukti Transfer</option>
+              <option value="DEPOSIT">Via Saldo Deposit</option>
+              <option value="TANPA_BUKTI">Tanpa Bukti / Batal</option>
+            </select>
+          </div>
+
+          <div class="lg:col-span-2">
+            <select id="sortRiwayatBayarMode" onchange="filterRiwayatBayarTable()" class="w-full border border-blue-200 rounded-xl px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50/70 focus:ring-2 focus:ring-blue-500 focus:outline-none" title="Urutan Tampilan">
+              <option value="TERBARU_PERIODE">Urut: Transaksi Terbaru</option>
+              <option value="PERIODE_TERBARU">Urut: Periode Terbaru</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50/60 border border-emerald-200/80 flex items-center justify-between">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Total Uang Masuk (Filter Aktif)</p>
+            <p id="rbStatTotalMasuk" class="text-lg font-extrabold text-emerald-800 mt-0.5">Rp 0</p>
+            <p id="rbStatCountTransaksi" class="text-[11px] font-medium text-emerald-600 mt-0.5">0 transaksi tercatat</p>
+          </div>
+          <div class="p-2.5 bg-white text-emerald-600 rounded-xl shadow-sm border border-emerald-100">
+            <i data-lucide="banknote" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50/60 border border-blue-200/80 flex items-center justify-between">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-blue-700">Komposisi Pelunasan</p>
+            <p id="rbStatLunasCicil" class="text-sm font-extrabold text-slate-800 mt-1">0 Lunas • 0 Cicilan</p>
+            <p id="rbStatBatalCount" class="text-[11px] font-medium text-slate-500 mt-0.5">0 pembatalan</p>
+          </div>
+          <div class="p-2.5 bg-white text-blue-600 rounded-xl shadow-sm border border-blue-100">
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-gradient-to-br from-violet-50 to-purple-50/60 border border-violet-200/80 flex items-center justify-between">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-wider text-violet-700">Audit Bukti Transfer</p>
+            <p id="rbStatBuktiCount" class="text-sm font-extrabold text-slate-800 mt-1">0 Struk • 0 Deposit</p>
+            <p id="rbStatBatchInfo" class="text-[11px] font-medium text-violet-600 mt-0.5">Arahkan kursor untuk sorot paket transfer</p>
+          </div>
+          <div class="p-2.5 bg-white text-violet-600 rounded-xl shadow-sm border border-violet-100">
+            <i data-lucide="file-check-2" class="w-5 h-5"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-xs text-left">
+          <thead class="bg-slate-50 text-slate-600 uppercase font-bold border-b border-slate-200">
+            <tr>
+              <th class="py-2.5 px-3.5 w-28 whitespace-nowrap">Tgl Bayar</th>
+              <th class="py-2.5 px-3.5 w-20 whitespace-nowrap">Kavling</th>
+              <th class="py-2.5 px-3.5 min-w-[160px]">Nama Warga</th>
+              <th class="py-2.5 px-3.5 w-24 whitespace-nowrap">Periode</th>
+              <th class="py-2.5 px-3.5 w-32 text-right whitespace-nowrap">Dibayar (Rp)</th>
+              <th class="py-2.5 px-3.5 w-28 text-right whitespace-nowrap">Sisa Akhir</th>
+              <th class="py-2.5 px-3.5 w-32 text-center whitespace-nowrap">Status</th>
+              <th class="py-2.5 px-3.5 min-w-[170px]">Keterangan</th>
+              <th class="py-2.5 px-3.5 w-36 text-center whitespace-nowrap">Bukti & Unduh</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyRiwayatBayar" class="divide-y divide-slate-100 font-medium">
+            <tr><td colspan="9" class="py-8 text-center text-slate-400">Memuat riwayat transaksi pembayaran...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pt-3 border-t border-slate-200">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-bold text-slate-500">Tampilkan:</span>
+          <select id="selectLimit_riwayatBayar" onchange="changeLimitRiwayatBayar(this.value)" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="15">15 baris</option>
+            <option value="25" selected>25 baris</option>
+            <option value="50">50 baris</option>
+            <option value="100">100 baris</option>
+            <option value="all">Semua Data</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-4">
+          <span id="infoPage_riwayatBayar" class="text-[11px] font-bold text-slate-500">Hal 1 dari 1</span>
+          <div class="flex items-center gap-1.5">
+            <button id="btnPrev_riwayatBayar" onclick="changePageRiwayatBayar(-1)" class="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30 transition-all"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+            <button id="btnNext_riwayatBayar" onclick="changePageRiwayatBayar(1)" class="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30 transition-all"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1063,6 +1203,61 @@
     </div>
   </div>
 
+  <!-- MODAL LIGHTBOX PRATINJAU & UNDUH BUKTI TRANSFER -->
+  <div id="modalPreviewBukti" class="fixed inset-0 z-[175] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div class="flex justify-between items-center border-b px-5 py-3.5 bg-white shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 bg-blue-50 text-blue-600 rounded-xl">
+            <i data-lucide="file-image" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Bukti Transfer Pembayaran</h3>
+            <p id="pvBuktiSubtitle" class="text-[11px] text-slate-500">-</p>
+          </div>
+        </div>
+        <button onclick="closeModalPreviewBukti()" class="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-lg transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="bg-slate-50 px-5 py-3 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs shrink-0">
+        <div>
+          <span class="text-[10px] text-slate-400 font-semibold block">Kavling / Warga</span>
+          <span id="pvBuktiWarga" class="font-bold text-slate-800 truncate block">-</span>
+        </div>
+        <div>
+          <span class="text-[10px] text-slate-400 font-semibold block">Periode Tagihan</span>
+          <span id="pvBuktiPeriode" class="font-bold text-blue-700">-</span>
+        </div>
+        <div>
+          <span class="text-[10px] text-slate-400 font-semibold block">Tanggal Bayar</span>
+          <span id="pvBuktiTgl" class="font-bold text-slate-800">-</span>
+        </div>
+        <div>
+          <span class="text-[10px] text-slate-400 font-semibold block">Nominal Dibayar</span>
+          <span id="pvBuktiNominal" class="font-extrabold text-emerald-600">Rp 0</span>
+        </div>
+      </div>
+
+      <div class="flex-1 bg-slate-900/95 min-h-[340px] max-h-[62vh] relative flex items-center justify-center overflow-hidden">
+        <iframe id="pvBuktiIframe" src="" class="w-full h-[380px] sm:h-[430px] border-0 bg-white" allow="autoplay"></iframe>
+      </div>
+
+      <div class="flex flex-wrap justify-between items-center gap-2 px-5 py-3.5 border-t bg-white shrink-0">
+        <span id="pvBuktiId" class="text-[10px] font-mono text-slate-400">ID: -</span>
+        <div class="flex items-center gap-2">
+          <a id="pvBuktiOpenTab" href="#" target="_blank" rel="noopener" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold inline-flex items-center gap-1.5 transition-all">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Buka Tab Baru
+          </a>
+          <a id="pvBuktiDownload" href="#" target="_blank" rel="noopener" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Unduh Bukti
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function() {
       const cacheBuster = Date.now();
@@ -1073,6 +1268,7 @@
         "js/pelanggan.js",
         "js/app.js",
         "js/deposit.js",
+        "js/riwayat-bayar.js",
         "js/auto-logout.js"
       ];
 
